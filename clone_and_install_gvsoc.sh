@@ -7,4 +7,5 @@ git submodule update --init --recursive --jobs 8
 pip3 install -r core/requirements.txt
 pip3 install -r gapy/requirements.txt
 make all
+source dramsys_pushbutton.sh
 
