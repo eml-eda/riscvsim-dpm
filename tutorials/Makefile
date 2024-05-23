@@ -15,7 +15,9 @@ all: 0 1 2 14
 
 14:
 	make -C 14_* gvsoc
-	make -C 14_* all run runner_args="--vcd"
+	make -C 14_* all run runner_args="--vcd --event=.*"
+	echo "The vcd output can be viewed with gtkwave in  build/view.gtkw"
+
 
 clean: 
 	-rm -r ./*/build 

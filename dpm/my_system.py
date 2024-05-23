@@ -5,9 +5,7 @@ import interco.router
 import utils.loader.loader
 import gvsoc.systree
 import gvsoc.runner
-import my_comp
-
-
+import my_sensors
 
 GAPY_TARGET = True
 
@@ -24,18 +22,6 @@ class Soc(gvsoc.systree.Component):
         # Main interconnect
         ico = interco.router.Router(self, 'ico')
 
-        # Custom components
-        comp = my_comp.MyComp(self, 'my_comp', value=0x12345678)
-        ico.o_MAP(comp.i_INPUT(), 'comp', base=0x20000000, size=0x00001000, rm_base=True)
-
-        comp2 = my_comp.MyComp2(self, 'my_comp2')
-        ico.o_MAP(comp2.i_INPUT(), 'comp2', base=0x30000000, size=0x00001000, rm_base=True)
-        comp2.o_POWER_CTRL( comp.i_POWER  ())
-        comp2.o_VOLTAGE_CTRL( comp.i_VOLTAGE())
-        
-        mem2 = memory.memory.Memory(self, 'mem2', size=0x00100000, power_trigger=True)
-        ico.o_MAP(mem2.i_INPUT(), 'mem2', base=0x10000000, size=0x00100000, rm_base=True)
-
         # Main memory
         mem = memory.memory.Memory(self, 'mem', size=0x00100000)
         # The memory needs to be connected with a mpping. The rm_base is used to substract
@@ -46,12 +32,21 @@ class Soc(gvsoc.systree.Component):
         host = cpu.iss.riscv.Riscv(self, 'host', isa='rv64imafdc')
         host.o_FETCH     ( ico.i_INPUT     ())
         host.o_DATA      ( ico.i_INPUT     ())
+
+        sensor1 = my_sensors.GenericSensor(self, 'sensor1')
+        sensor2 = my_sensors.GenericSensor(self, 'sensor2')
+        sensor3 = my_sensors.GenericSensor(self, 'sensor3')
+        ico.o_MAP(sensor1.i_INPUT(), 'sensor1', base=0x20000000, size=0x00001000, rm_base=True)
+        ico.o_MAP(sensor2.i_INPUT(), 'sensor2', base=0x20000100, size=0x00001000, rm_base=True)
+        ico.o_MAP(sensor3.i_INPUT(), 'sensor3', base=0x20000200, size=0x00001000, rm_base=True)
+
         # Finally connect an ELF loader, which will execute first and will then
         # send to the core the boot address and notify him he can start
         loader = utils.loader.loader.ElfLoader(self, 'loader', binary=binary)
         loader.o_OUT     ( ico.i_INPUT     ())
         loader.o_START   ( host.i_FETCHEN  ())
         loader.o_ENTRY   ( host.i_ENTRY    ())
+
 
 
 # This is a wrapping component of the real one in order to connect a clock generator to it
@@ -71,6 +66,7 @@ class Rv64(gvsoc.systree.Component):
 
 # This is the top target that gapy will instantiate
 class Target(gvsoc.runner.Target):
+
     def __init__(self, parser, options):
         super(Target, self).__init__(parser, options,
             model=Rv64, description="RV64 virtual board")

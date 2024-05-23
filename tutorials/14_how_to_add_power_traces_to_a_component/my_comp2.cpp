@@ -21,7 +21,6 @@ private:
     vp::WireMaster<int> voltage_ctrl_itf;
 };
 
-
 MyComp::MyComp(vp::ComponentConf &config)
     : vp::Component(config)
 {
@@ -40,7 +39,7 @@ vp::IoReqStatus MyComp::handle_req(vp::Block *__this, vp::IoReq *req)
     MyComp *_this = (MyComp *)__this;
 
     _this->trace.msg(vp::TraceLevel::DEBUG, "Received request at offset 0x%lx, size 0x%lx, is_write %d\n",
-        req->get_addr(), req->get_size(), req->get_is_write());
+                     req->get_addr(), req->get_size(), req->get_is_write());
 
     if (req->get_size() == 4)
     {
@@ -57,7 +56,7 @@ vp::IoReqStatus MyComp::handle_req(vp::Block *__this, vp::IoReq *req)
                     if (clock)
                     {
                         power_state = vp::PowerSupplyState::ON;
-                     }
+                    }
                     else
                     {
                         power_state = vp::PowerSupplyState::ON_CLOCK_GATED;
@@ -66,7 +65,6 @@ vp::IoReqStatus MyComp::handle_req(vp::Block *__this, vp::IoReq *req)
                 else
                 {
                     power_state = vp::PowerSupplyState::OFF;
-
                 }
 
                 _this->power_ctrl_itf.sync(power_state);
@@ -85,7 +83,6 @@ vp::IoReqStatus MyComp::handle_req(vp::Block *__this, vp::IoReq *req)
     return vp::IO_REQ_OK;
 }
 
-
 void MyComp::reset(bool active)
 {
     if (active)
@@ -93,7 +90,6 @@ void MyComp::reset(bool active)
         this->power_ctrl_itf.sync(vp::PowerSupplyState::OFF);
     }
 }
-
 
 extern "C" vp::Component *gv_new(vp::ComponentConf &config)
 {

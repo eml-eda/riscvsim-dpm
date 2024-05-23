@@ -189,3 +189,187 @@ Taking as an example the previous system code, in order to connect the new compo
 ~~~
 
 In these lines, the class MyComp is instantiated with a defined value, then its port is mapped by the interconnect object to a defined address that will be accessed by the binary to be executed.
+
+### Power Modeling
+
+Power modeling is based on power sources.
+The power state of a component  in this example, is controlled on two ports:
+
+~~~cpp
+//in class declaration
+vp::WireMaster<int> power_ctrl_itf;
+vp::WireMaster<int> voltage_ctrl_itf;
+    ...
+//in component contructor
+this->new_master_port("power_ctrl", &this->power_ctrl_itf);
+this->new_master_port("voltage_ctrl", &this->voltage_ctrl_itf);
+~~~
+
+In this example the two ports are controlled through registers:
+
+* the first consinsts of 2 bit: one stating if the component is active, the second to activet the clock of the component.
+* the second holds the voltage value.
+
+~~~cpp
+if (req->get_size() == 4){
+    if (req->get_addr() == 0){
+        if (req->get_is_write()){
+            int power = (*(uint32_t *)req->get_data()) & 1;
+            int clock = ((*(uint32_t *)req->get_data()) >> 1) & 1;
+            int power_state;
+            if (power){
+                if (clock){
+                    power_state = vp::PowerSupplyState::ON;
+                } else {
+                        power_state = vp::PowerSupplyState::ON_CLOCK_GATED;
+                    }
+            } else {
+                    power_state = vp::PowerSupplyState::OFF;
+            }
+            _this->power_ctrl_itf.sync(power_state);
+            }
+        }
+    else if (req->get_addr() == 4){
+            if (req->get_is_write()){
+                int voltage = *(uint32_t *)req->get_data();
+                _this->voltage_ctrl_itf.sync(voltage);
+            }
+        }
+    }
+~~~
+
+As shown in the code example the power state of the component is set by calling the sync function of each port.
+The definition of the power metrics of the two sources are described in the Python generator.
+They consists in meaured power consumption at different voltage level, temperature and frequency.
+
+~~~python
+self.add_properties(
+            {
+                "background_power": {
+                    "dynamic": {
+                        "type": "linear",
+                        "unit": "W",
+                        "values": {
+                            "25": {
+                                "600.0": {"any": 0.00020},
+                                "1200.0": {"any": 0.00050},
+                            }
+                        },
+                    },
+                    "leakage": {
+                        "type": "linear",
+                        "unit": "W",
+                        "values": {
+                            "25": {
+                                "600.0": {"any": 0.00005},
+                                "1200.0": {"any": 0.00010},
+                            }
+                        },
+                    },
+                },
+                "access_power": {
+                    "dynamic": {
+                        "type": "linear",
+                        "unit": "pJ",
+                        "values": {
+                            "25": {
+                                "600.0": {"any": 5.00000},
+                                "1200.0": {"any": 10.00000},
+                            }
+                        },
+                    }
+                },
+            }
+        )
+~~~
+
+This example models the power for any frequency and temperature.
+The framework interpolates the power values based on the given parametrics.
+In order to take care of the clock gating the _power_supply_method_ has to be overloaded.
+
+~~~cpp
+void MyComp::power_supply_set(vp::PowerSupplyState state)
+{
+    if (state == vp::PowerSupplyState::ON)
+    {
+        this->background_power.dynamic_power_start();
+
+    }
+    else
+    {
+        this->background_power.dynamic_power_stop();
+    }
+}
+~~~
+
+The overloaded function just turn on the dynamic power where as soon as the power state is on.
+To model the power of the acceses ( e.g. access to the memory or instruction) the framework relies on energy quantum that are interpolated depending on the voltage. This quantity needs only to be assign through the instruction:
+
+~~~cpp
+_this->access_power.account_energy_quantum();
+~~~
+
+Finally the power ports are added to the python generator of the component and bind into the system.
+
+~~~python
+#in my_comp.py classes
+def o_POWER_CTRL(self, itf: gvsoc.systree.SlaveItf):
+    self.itf_bind('power_ctrl', itf, signature='wire<int>')
+
+def o_VOLTAGE_CTRL(self, itf: gvsoc.systree.SlaveItf):
+    self.itf_bind('voltage_ctrl', itf, signature='wire<int>')
+
+#in my_system.py constructor
+comp2 = my_comp.MyComp2(self, 'my_comp2')
+ico.o_MAP(comp2.i_INPUT(), 'comp2', base=0x30000000, size=0x00001000, rm_base=True)
+comp2.o_POWER_CTRL( comp.i_POWER  ())
+comp2.o_VOLTAGE_CTRL( comp.i_VOLTAGE())
+~~~
+
+The simulated binary (main.c) go through the possible states and outputs the power consumption of the system.
+
+## About Power in gvsoc
+
+The documentation provided in the repository does't state or explain how power is handled in the simulator. In these section there might be incorrect, or not exhaiutive information.
+
+### Describing power sources and setting parameters
+The simulator makes available 3 power states:
+
+~~~cpp
+#from vp/power/power.hpp
+ enum PowerSupplyState
+    {
+        OFF=0,
+        ON_CLOCK_GATED=2,
+        ON=1
+    };
+~~~
+
+The metrics of the power consumption are described through JSON. For each power source, there is a JSON object describing the dynamic and leakage power consumption.
+The paramers are stated in the _values_ object. In this object for each temperature is indicated at each voltage, a certain frequency at which correspond a power consumption value.
+In the example below, there is a definition of a power souce named "_background_power_": it has both dynamic and leakage power values and there are power metrics for a single temperature (25) and two voltages (600 and 1200) at _any_ frequencies.
+
+~~~json
+                "background_power": {
+                    "dynamic": {
+                        "type": "linear",
+                        "unit": "W",
+                        "values": {
+                            "25": {
+                                "600.0": {"any": 0.00020},
+                                "1200.0": {"any": 0.00050},
+                            }
+                        },
+                    },
+                    "leakage": {
+                        "type": "linear",
+                        "unit": "W",
+                        "values": {
+                            "25": {
+                                "600.0": {"any": 0.00005},
+                                "1200.0": {"any": 0.00010},
+                            }
+                        },
+                    },
+                }
+~~~

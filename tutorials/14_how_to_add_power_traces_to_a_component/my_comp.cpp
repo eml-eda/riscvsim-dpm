@@ -20,10 +20,6 @@ private:
     vp::Trace trace;
     vp::Signal<uint32_t> vcd_value;
 
-    // Adding the power ports
-    vp::WireMaster<int> power_ctrl_itf;
-    vp::WireMaster<int> voltage_ctrl_itf;
-
     // adding power sources
     vp::PowerSource access_power;
     vp::PowerSource background_power;
@@ -39,14 +35,11 @@ MyComp::MyComp(vp::ComponentConf &config)
 
     this->traces.new_trace("trace", &this->trace);
 
-    // declaring power ports
-    this->new_master_port("power_ctrl", &this->power_ctrl_itf);
-    this->new_master_port("voltage_ctrl", &this->voltage_ctrl_itf);
 
     // declaring power sources
     this->power.new_power_source("leakage", &background_power, this->get_js_config()->get("**/background_power"));
     this->power.new_power_source("access", &access_power, this->get_js_config()->get("**/access_power"));
-    // leakage sarted because is managed by the framework
+    // leakage started because is managed by the framework
     this->background_power.leakage_power_start();
 }
 
