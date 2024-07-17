@@ -45,6 +45,15 @@ class GenericSensor(gsys.Component):
             }
         )
 
+    def gen_gtkw(self, tree, comp_traces):
+        if tree.get_view() == "overview":
+            tree.add_trace(self, self.name, vcd_signal="status[31:0]", tag="overview")
+
     def i_INPUT(self) -> gsys.SlaveItf:
         return gsys.SlaveItf(self, "input", signature="io")
 
+    def i_POWER_io(self) -> gsys.SlaveItf:
+        return gsys.SlaveItf(self, "p_in", signature="io")
+    
+    def i_VOLTAGE_io(self) -> gsys.SlaveItf:
+         return gsys.SlaveItf(self, "v_in", signature="io")
