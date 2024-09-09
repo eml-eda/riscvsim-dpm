@@ -9,7 +9,9 @@ int main()
     printf("data from sensor 2: %x\n", *((uint32_t*) 0x20000100));
     printf("data from sensor 3: %x\n\n", *((uint32_t*) 0x20000200));
     // compute something
-
+    for(int i=0; i<10; i++){
+    
+    }
     //go to sleep
     
     }

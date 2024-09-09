@@ -2,20 +2,19 @@
 #include <vp/signal.hpp>
 #include <vp/itf/io.hpp>
 
-#define time_sensor_1 50
-#define time_sensor_2 150
-#define time_sensor_3 520
-#define time_comp 20
+// GENERATED SCHEDULING TIMES
+	#define period 200
+	#define active_time_host 30
+	#define start_time_host 0
+	#define active_time_sensor1 30
+	#define start_time_sensor1 0
+	#define active_time_sensor2 6
+	#define start_time_sensor2 0
+	#define active_time_sensor3 6
+	#define start_time_sensor3 0
+// END SCHEDULING TIMES
 
 using namespace vp;
-
-typedef enum state
-{
-    read1,
-    read2,
-    read3,
-    comp
-} state;
 
 class PowerManager : public Component
 {
@@ -31,128 +30,160 @@ private:
     IoSlave input_itf;
     static void handle_event(Block *__this, ClockEvent *event);
     Trace trace;
-    vp::ClockEvent event;
-    WireMaster<int> power_ctrl_itf;
-    WireMaster<int> voltage_ctrl_itf;
-    WireMaster<int> power_ctrl_itf1;
-    WireMaster<int> voltage_ctrl_itf1;
-    WireMaster<int> power_ctrl_itf2;
-    WireMaster<int> voltage_ctrl_itf2;
-    WireMaster<int> power_ctrl_itf3;
-    WireMaster<int> voltage_ctrl_itf3;
+    vp::ClockEvent start_period;
+
+    // GENERATED EVENTS 
+
+	vp::ClockEvent start_host;
+	vp::ClockEvent start_sensor1;
+	vp::ClockEvent start_sensor2;
+	vp::ClockEvent start_sensor3;
+    // END GENERATED EVENTS
+
+    static void start_period_handler(vp::Block *__this, vp::ClockEvent *event);
+
+    // GENERATED EVENT HANDLER DEFINITIONS
+
+	static void start_host_handler(vp::Block *__this, vp::ClockEvent *event);
+	static void start_sensor1_handler(vp::Block *__this, vp::ClockEvent *event);
+	static void start_sensor2_handler(vp::Block *__this, vp::ClockEvent *event);
+	static void start_sensor3_handler(vp::Block *__this, vp::ClockEvent *event);
+    // END EVENT HANDLER DEFNITIONS
+
+    // GENERATED INTERFACES
+
+	WireMaster<int> power_ctrl_itf_host;
+	WireMaster<int> voltage_ctrl_itf_host;
+	WireMaster<int> power_ctrl_itf_sensor1;
+	WireMaster<int> voltage_ctrl_itf_sensor1;
+	WireMaster<int> power_ctrl_itf_sensor2;
+	WireMaster<int> voltage_ctrl_itf_sensor2;
+	WireMaster<int> power_ctrl_itf_sensor3;
+	WireMaster<int> voltage_ctrl_itf_sensor3;
+    // END INTERFACES
 };
 
 PowerManager::PowerManager(ComponentConf &config)
-    : Component(config), event(this, PowerManager::handle_event)
+    : Component(config),
+    start_period(this, start_period_handler) 
+    // GENERATED EVENT CONSTRUCTORS
+,
+	start_host(this, PowerManager::start_host_handler),
+	start_sensor1(this, PowerManager::start_sensor1_handler),
+	start_sensor2(this, PowerManager::start_sensor2_handler),
+	start_sensor3(this, PowerManager::start_sensor3_handler)
+    // END EVENT CONSTRUCTORS
 {
+    this->traces.new_trace("trace", &this->trace);
 
     this->new_slave_port("input", &this->input_itf);
 
-    this->new_master_port("power_ctrl", &this->power_ctrl_itf);
 
-    this->new_master_port("voltage_ctrl", &this->voltage_ctrl_itf);
+    // GENERATED POWER AND VOLTAGE PORTS
 
-    this->new_master_port("power_ctrl1", &this->power_ctrl_itf1);
-
-    this->new_master_port("voltage_ctrl1", &this->voltage_ctrl_itf1);
-
-    this->new_master_port("power_ctrl2", &this->power_ctrl_itf2);
-
-    this->new_master_port("voltage_ctrl2", &this->voltage_ctrl_itf2);
-
-    this->new_master_port("power_ctrl3", &this->power_ctrl_itf3);
-
-    this->new_master_port("voltage_ctrl3", &this->voltage_ctrl_itf3);
-
-    this->traces.new_trace("trace", &this->trace);
+	this->new_master_port("power_ctrl_host", &this->power_ctrl_itf_host);
+	this->new_master_port("voltage_ctrl_host", &this->voltage_ctrl_itf_host);
+	this->new_master_port("power_ctrl_sensor1", &this->power_ctrl_itf_sensor1);
+	this->new_master_port("voltage_ctrl_sensor1", &this->voltage_ctrl_itf_sensor1);
+	this->new_master_port("power_ctrl_sensor2", &this->power_ctrl_itf_sensor2);
+	this->new_master_port("voltage_ctrl_sensor2", &this->voltage_ctrl_itf_sensor2);
+	this->new_master_port("power_ctrl_sensor3", &this->power_ctrl_itf_sensor3);
+	this->new_master_port("voltage_ctrl_sensor3", &this->voltage_ctrl_itf_sensor3);
+    // END GENERATED PORTS
 }
-
-// IoReqStatus PowerManager::handle_req(Block *__this, IoReq *req)
-// {
-//     PowerManager *_this = (PowerManager *)__this;
-
-//     /*TODO receive request and set power state*/
-//     return IO_REQ_OK;
-// }
 
 void PowerManager::reset(bool active)
 {
     if (active)
     {
-        this->power_ctrl_itf.sync(PowerSupplyState::OFF);
+        this->power_ctrl_itf_host.sync(PowerSupplyState::OFF);
     }
     else
-        this->event.enqueue(1);
+        this->start_period.enqueue(1);
 }
 
-void PowerManager::start(){
-    this->event.enqueue(10);
-}
-
-// void PowerManager::handle_notif(vp::Block *__this, bool value)
-// {
-//     PowerManager *_this = (PowerManager *)__this;
-
-//     _this->trace.msg(vp::TraceLevel::DEBUG, "Received notif\n");
-
-//     if (!_this->event.is_enqueued())
-//     {
-//         _this->event.enqueue(1);
-//     }
-// }
-
-void PowerManager::handle_event(vp::Block *__this, vp::ClockEvent *event)
+void PowerManager::start()
 {
-    static state curstate = read1;
+    this->start_period.enqueue(10);
+}
+
+void PowerManager::start_period_handler(vp::Block *__this, vp::ClockEvent *event)
+{
     PowerManager *_this = (PowerManager *)__this;
 
-    switch (curstate)
+    if (!_this->start_period.is_enqueued())
     {
-    case read1:
-        if (!_this->event.is_enqueued())
-        {
-            _this->trace.msg(vp::TraceLevel::DEBUG, "inside read1\n");
-            _this->power_ctrl_itf.sync(vp::PowerSupplyState::OFF);
-            _this->power_ctrl_itf1.sync(vp::PowerSupplyState::ON);
-            _this->event.enqueue(time_sensor_1);
-            curstate = read2;
-        }
-        break;
-    case read2:
-        if (!_this->event.is_enqueued())
-        {
-                        _this->trace.msg(vp::TraceLevel::DEBUG, "inside read2\n");
-            _this->power_ctrl_itf1.sync(vp::PowerSupplyState::OFF);
-            _this->power_ctrl_itf2.sync(vp::PowerSupplyState::ON);
-            _this->event.enqueue(time_sensor_2);
-            curstate = read3;
-        }
-        break;
-    case read3:
-        if (!_this->event.is_enqueued())
-        {
-                        _this->trace.msg(vp::TraceLevel::DEBUG, "inside read3\n");
-            _this->power_ctrl_itf2.sync(vp::PowerSupplyState::OFF);
-            _this->power_ctrl_itf3.sync(vp::PowerSupplyState::ON);
-            _this->event.enqueue(time_sensor_3);
-            curstate = comp;
-        }
-        break;
-    case comp:
-        if (!_this->event.is_enqueued())
-        {
-                        _this->trace.msg(vp::TraceLevel::DEBUG, "inside read4\n");
-            _this->power_ctrl_itf3.sync(vp::PowerSupplyState::OFF);
-            _this->power_ctrl_itf.sync(vp::PowerSupplyState::ON);
-            _this->event.enqueue(time_comp);
-            curstate = read1;
-        }
-        break;
-    default:
-        curstate = read1;
-        break;
+        _this->trace.msg(vp::TraceLevel::INFO, "starting period");
+        _this->start_period.enqueue(period);
+        // GENERATED START EVENTS
+
+		_this->start_host.enqueue(start_time_host); 
+		_this->start_sensor1.enqueue(start_time_sensor1); 
+		_this->start_sensor2.enqueue(start_time_sensor2); 
+		_this->start_sensor3.enqueue(start_time_sensor3); 
+        // END START EVENTS
     }
 }
+
+// GENERATED EVENT HANDLERS
+
+void PowerManager::start_host_handler(vp::Block *__this, vp::ClockEvent *event)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	static vp::PowerSupplyState current_state = OFF;
+	if (!_this->start_host.is_enqueued())
+	{
+		// change power state
+		current_state = current_state == OFF ? ON : OFF;
+		_this->trace.msg(vp::TraceLevel::INFO, "changing status of host to " + current_state);
+		_this->power_ctrl_itf_host.sync(current_state);
+		if (current_state == ON)
+			_this->start_host.enqueue(active_time_host);
+	}
+}
+void PowerManager::start_sensor1_handler(vp::Block *__this, vp::ClockEvent *event)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	static vp::PowerSupplyState current_state = OFF;
+	if (!_this->start_sensor1.is_enqueued())
+	{
+		// change power state
+		current_state = current_state == OFF ? ON : OFF;
+		_this->trace.msg(vp::TraceLevel::INFO, "changing status of sensor1 to " + current_state);
+		_this->power_ctrl_itf_sensor1.sync(current_state);
+		if (current_state == ON)
+			_this->start_sensor1.enqueue(active_time_sensor1);
+	}
+}
+void PowerManager::start_sensor2_handler(vp::Block *__this, vp::ClockEvent *event)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	static vp::PowerSupplyState current_state = OFF;
+	if (!_this->start_sensor2.is_enqueued())
+	{
+		// change power state
+		current_state = current_state == OFF ? ON : OFF;
+		_this->trace.msg(vp::TraceLevel::INFO, "changing status of sensor2 to " + current_state);
+		_this->power_ctrl_itf_sensor2.sync(current_state);
+		if (current_state == ON)
+			_this->start_sensor2.enqueue(active_time_sensor2);
+	}
+}
+void PowerManager::start_sensor3_handler(vp::Block *__this, vp::ClockEvent *event)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	static vp::PowerSupplyState current_state = OFF;
+	if (!_this->start_sensor3.is_enqueued())
+	{
+		// change power state
+		current_state = current_state == OFF ? ON : OFF;
+		_this->trace.msg(vp::TraceLevel::INFO, "changing status of sensor3 to " + current_state);
+		_this->power_ctrl_itf_sensor3.sync(current_state);
+		if (current_state == ON)
+			_this->start_sensor3.enqueue(active_time_sensor3);
+	}
+}
+// END EVENT HANDLERS
 
 extern "C" Component *gv_new(ComponentConf &config)
 {

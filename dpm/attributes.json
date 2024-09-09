@@ -1,0 +1,21 @@
+{
+    "period": "200",
+    "components": {
+        "host": {
+            "activation_time": "0",
+            "time_on": "30"
+        },
+        "sensor1": {
+            "activation_time": "0",
+            "time_on": "30"
+        },
+        "sensor2": {
+            "activation_time": "0",
+            "time_on": "6"
+        },
+        "sensor3": {
+            "activation_time": "0",
+            "time_on": "6"
+        }
+    }
+}
