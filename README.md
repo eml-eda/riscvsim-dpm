@@ -331,7 +331,7 @@ The simulated binary (main.c) go through the possible states and outputs the pow
 
 ## About Power in gvsoc
 
-The documentation provided in the repository does't state or explain how power is handled in the simulator. In these section there might be incorrect, or not exhaiutive information.
+The documentation provided in the repository does't state or explain how power is handled in the simulator. In these section there might be incorrect, or not exhaustive information.
 
 ### Describing power sources and setting parameters
 The simulator makes available 3 power states:
@@ -375,5 +375,37 @@ In the example below, there is a definition of a power source named "_background
                 }
 ~~~
 
-The change in power state and voltage, is immediate. In the host present in the models, changin the power state does not affect the execution of the code.
-In the modeled chips present in the pulp directory, power is modeled on instructions and not on  the running state of the component.  
+The change in power state and voltage, is immediate. In the standard core present in the models, changing the power state does not affect the execution of the code.
+In the modeled chips present in the pulp directory, power is modeled on instructions and not on the running state of the component.  
+
+## Timing in gvsoc
+In the simulator is it possible to model timing and delay through clock events.
+
+~~~ cpp
+vp::ClockEvent event;
+~~~
+
+events needs to be configured in the costructor of the component:
+
+~~~ cpp
+MyComp::MyComp(vp::ComponentConf &config)
+    : vp::Component(config), event(this, MyComp::handle_event)
+{
+~~~
+
+The constructor of the event is call passing as parameter the component and the callback function that will be executed when the event is fired.
+
+The main methods are:
+
+* exec();
+  * the event is executed immediately
+* enqueue(int64_t cycles = 1);
+  * the event is enqueued, and will be execute after a number of cycles
+* cancel();
+  * the execution of an enqueued event is cancelled.
+* is_enqueued();
+  * return true if the event is scheduled, false otherwise
+* enable();
+  * enable the event to be executed at each clock cycle
+* disable();
+  * disable the execution of the event at each clock cycle

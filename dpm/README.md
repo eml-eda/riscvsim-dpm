@@ -2,6 +2,8 @@
 
 The Power manager component (power_manager) controls the power state of the various component at the same hierarchy level, following a schedule reported in a JSON file.
 
+![blockscheme](drawio/blockscheme.png)
+
 ## Generation of the interconnection
 In the `power_manager.py` python generator, the `power_manager.cpp` source file is updated with the definitions of the power and voltage ports that are connected to the components being controlled. This generation process applies to components at the same hierarchy level, that are also present in `attributes.json` file, which contains the scheduling times for each component.
 

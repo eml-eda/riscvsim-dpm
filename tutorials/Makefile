@@ -12,7 +12,9 @@ all: 0 1 2 14
 2:
 	make -C 2_* gvsoc
 	make -C 2_* all run
-
+6:
+	make -C 6_* gvsoc
+	make -C 6_* all run
 14:
 	make -C 14_* gvsoc
 	make -C 14_* all run runner_args="--vcd --event=.*"
