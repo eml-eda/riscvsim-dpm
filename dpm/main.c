@@ -13,7 +13,9 @@ int main()
     
     }
     //go to sleep
-    
+    //asm("wfi");
+
+
     }
     return 0;
 }

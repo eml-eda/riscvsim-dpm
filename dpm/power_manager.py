@@ -83,7 +83,7 @@ def add_schedule(components, filepath, srcpath):
 
             start_events= start_events +f"\n\t\t_this->start_{item}.enqueue(start_time_{item}); "
 
-            event_handlers = event_handlers +f"\nvoid PowerManager::start_{item}_handler(vp::Block *__this, vp::ClockEvent *event)\n{{\n\tPowerManager *_this = (PowerManager *)__this;\n\tstatic vp::PowerSupplyState current_state = OFF;\n\tif (!_this->start_{item}.is_enqueued())\n\t{{\n\t\t// change power state\n\t\tcurrent_state = current_state == OFF ? ON : OFF;\n\t\t_this->trace.msg(vp::TraceLevel::INFO, \"changing status of {item} to \" + current_state);\n\t\t_this->power_ctrl_itf_{item}.sync(current_state);\n\t\tif (current_state == ON)\n\t\t\t_this->start_{item}.enqueue(active_time_{item});\n\t}}\n}}"
+            event_handlers = event_handlers +f"\nvoid PowerManager::start_{item}_handler(vp::Block *__this, vp::ClockEvent *event)\n{{\n\tPowerManager *_this = (PowerManager *)__this;\n\tstatic vp::PowerSupplyState current_state = OFF;\n\tif (!_this->start_{item}.is_enqueued())\n\t{{\n\t\t// change power state\n\t\tcurrent_state = current_state == OFF ? ON : OFF;\n\t\t_this->trace.msg(vp::TraceLevel::DEBUG, \"changing status of {item} to %s\\n\", statename[current_state] );\n\t\t_this->power_ctrl_itf_{item}.sync(current_state);\n\t\tif (current_state == ON)\n\t\t\t_this->start_{item}.enqueue(active_time_{item});\n\t}}\n}}"
 
     # update the source file 
     
@@ -105,7 +105,7 @@ def add_schedule(components, filepath, srcpath):
             result.append("\n"+line)
             continue
 
-        if "// GENERATED EVENTS " in line:
+        if "// GENERATED EVENTS" in line:
             result.append(line)
             result.extend(events)
             in_block=True
@@ -160,16 +160,13 @@ def add_schedule(components, filepath, srcpath):
             result.append("\n"+line)
             continue
 
-        
-
-
         if not in_block:
             result.append(line)
 
     with open(srcpath, 'w') as file:
         file.writelines(result)
 
-    print("events:\n", events, "start events:\n", start_events, "event handlers:\n", event_handlers, "event handlers definitions:\n", event_handlers_definitions, "event constructors:\n", event_constructors, "cheduling times:\n ", scheduling_times)
+    # print("events:\n", events, "start events:\n", start_events, "event handlers:\n", event_handlers, "event handlers definitions:\n", event_handlers_definitions, "event constructors:\n", event_constructors, "cheduling times:\n ", scheduling_times)
 
 
 

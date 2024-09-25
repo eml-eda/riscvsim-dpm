@@ -207,7 +207,7 @@ this->new_master_port("voltage_ctrl", &this->voltage_ctrl_itf);
 
 In this example the two ports are controlled through registers:
 
-* the first consinsts of 2 bit: one stating if the component is active, the second to activet the clock of the component.
+* the first consists of 2 bit: one stating if the component is active, the second to activate the clock of the component.
 * the second holds the voltage value.
 
 ~~~cpp
@@ -240,7 +240,7 @@ if (req->get_size() == 4){
 
 As shown in the code example the power state of the component is set by calling the sync function of each port.
 The definition of the power metrics of the two sources are described in the Python generator.
-They consists in meaured power consumption at different voltage level, temperature and frequency.
+They consists in measured power consumption at different voltage level, temperature and frequency.
 
 ~~~python
 self.add_properties(
@@ -283,9 +283,9 @@ self.add_properties(
         )
 ~~~
 
-This example models the power for any frequency and temperature.
+This example models the power for any frequency, at temperature of 25 Celsius, of two different voltage levels.
 The framework interpolates the power values based on the given parametrics.
-In order to take care of the clock gating the _power_supply_method_ has to be overloaded.
+In order to take care of the clock gating the _power_supply_set_ _method_ has to be overloaded, in the component that is changing power stare..
 
 ~~~cpp
 void MyComp::power_supply_set(vp::PowerSupplyState state)
@@ -302,7 +302,7 @@ void MyComp::power_supply_set(vp::PowerSupplyState state)
 }
 ~~~
 
-The overloaded function just turn on the dynamic power where as soon as the power state is on.
+The overloaded function just turn on the dynamic power counter as soon as the power state is on.
 To model the power of the acceses ( e.g. access to the memory or instruction) the framework relies on energy quantum that are interpolated depending on the voltage. This quantity needs only to be assign through the instruction:
 
 ~~~cpp
@@ -326,6 +326,7 @@ comp2.o_POWER_CTRL( comp.i_POWER  ())
 comp2.o_VOLTAGE_CTRL( comp.i_VOLTAGE())
 ~~~
 
+Note that every component inherited from _gvsoc.systree.Component_ is already provided with input power and voltage port (_i_POWER()_ an _i_VOLTAGE()_).
 The simulated binary (main.c) go through the possible states and outputs the power consumption of the system.
 
 ## About Power in gvsoc
@@ -346,8 +347,8 @@ The simulator makes available 3 power states:
 ~~~
 
 The metrics of the power consumption are described through JSON. For each power source, there is a JSON object describing the dynamic and leakage power consumption.
-The paramers are stated in the _values_ object. In this object for each temperature is indicated at each voltage, a certain frequency at which correspond a power consumption value.
-In the example below, there is a definition of a power souce named "_background_power_": it has both dynamic and leakage power values and there are power metrics for a single temperature (25) and two voltages (600 and 1200) at _any_ frequencies.
+In this object for each temperature is indicated at each voltage, a certain frequency at which correspond a power consumption value.
+In the example below, there is a definition of a power source named "_background_power_": it has both dynamic and leakage power values and there are power metrics for a single temperature (25) and two voltages (600 and 1200) at _any_ frequencies.
 
 ~~~json
                 "background_power": {
@@ -373,3 +374,6 @@ In the example below, there is a definition of a power souce named "_background_
                     },
                 }
 ~~~
+
+The change in power state and voltage, is immediate. In the host present in the models, changin the power state does not affect the execution of the code.
+In the modeled chips present in the pulp directory, power is modeled on instructions and not on  the running state of the component.  
