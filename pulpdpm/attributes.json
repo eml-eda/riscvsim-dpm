@@ -1,0 +1,9 @@
+{
+    "period": "20000",
+    "components": {
+        "host": {
+            "activation_time": "0",
+            "time_on": "20000"
+        }
+    }
+}
