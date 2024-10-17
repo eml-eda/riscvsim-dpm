@@ -3,15 +3,6 @@
 #include <vp/itf/io.hpp>
 #include <string>
 // GENERATED SCHEDULING TIMES
-	#define period 200
-	#define active_time_host 30
-	#define start_time_host 0
-	#define active_time_sensor1 30
-	#define start_time_sensor1 0
-	#define active_time_sensor2 6
-	#define start_time_sensor2 0
-	#define active_time_sensor3 6
-	#define start_time_sensor3 0
 // END SCHEDULING TIMES
 
 using namespace vp;
@@ -21,37 +12,35 @@ class PowerManager : public Component
 
 public:
 	PowerManager(ComponentConf &config);
-
 	void reset(bool active);
+#ifdef SCHEDULING
 	void start();
-
+#endif
 private:
-	void handle_notif(vp::Block *__this, bool value);
-	IoSlave input_itf;
-	static void handle_event(Block *__this, ClockEvent *event);
+	static vp::IoReqStatus handle_state(vp::Block *__this, vp::IoReq *req);
+	static vp::IoReqStatus handle_voltage(vp::Block *__this, vp::IoReq *req);
+	IoSlave input_state_itf;
+	IoSlave input_voltage_itf;
 	Trace trace;
+	vp::Signal<int> last_pm;
+
+#ifdef SCHEDULING
 	vp::ClockEvent start_period;
 
 	// GENERATED EVENTS
-
-	vp::ClockEvent start_host;
-	vp::ClockEvent start_sensor1;
-	vp::ClockEvent start_sensor2;
-	vp::ClockEvent start_sensor3;
 	// END GENERATED EVENTS
 
 	static void start_period_handler(vp::Block *__this, vp::ClockEvent *event);
 
 	// GENERATED EVENT HANDLER DEFINITIONS
-
-	static void start_host_handler(vp::Block *__this, vp::ClockEvent *event);
-	static void start_sensor1_handler(vp::Block *__this, vp::ClockEvent *event);
-	static void start_sensor2_handler(vp::Block *__this, vp::ClockEvent *event);
-	static void start_sensor3_handler(vp::Block *__this, vp::ClockEvent *event);
-	// END EVENT HANDLER DEFNITIONS
-
+// END EVENT HANDLER DEFNITIONS
+#endif
 	// GENERATED INTERFACES
 
+	WireMaster<int> power_ctrl_itf_ico;
+	WireMaster<int> voltage_ctrl_itf_ico;
+	WireMaster<int> power_ctrl_itf_mem;
+	WireMaster<int> voltage_ctrl_itf_mem;
 	WireMaster<int> power_ctrl_itf_host;
 	WireMaster<int> voltage_ctrl_itf_host;
 	WireMaster<int> power_ctrl_itf_sensor1;
@@ -64,22 +53,27 @@ private:
 };
 
 PowerManager::PowerManager(ComponentConf &config)
-	: Component(config),
+	: Component(config), last_pm(*this, "last_pm_received", 3)
+#ifdef SCHEDULING
+	  ,
 	  start_period(this, start_period_handler)
-	  // GENERATED EVENT CONSTRUCTORS
-,
-	start_host(this, PowerManager::start_host_handler),
-	start_sensor1(this, PowerManager::start_sensor1_handler),
-	start_sensor2(this, PowerManager::start_sensor2_handler),
-	start_sensor3(this, PowerManager::start_sensor3_handler)
+// GENERATED EVENT CONSTRUCTORS
 // END EVENT CONSTRUCTORS
+#endif
 {
 	this->traces.new_trace("trace", &this->trace, vp::DEBUG);
 
-	this->new_slave_port("input", &this->input_itf);
+	this->new_slave_port("state_ctrl", &this->input_state_itf);
+	this->new_slave_port("voltage_ctrl", &this->input_voltage_itf);
+	this->input_state_itf.set_req_meth(handle_state);
+	this->input_voltage_itf.set_req_meth(handle_voltage);
 
 	// GENERATED POWER AND VOLTAGE PORTS
 
+	this->new_master_port("power_ctrl_ico", &this->power_ctrl_itf_ico);
+	this->new_master_port("voltage_ctrl_ico", &this->voltage_ctrl_itf_ico);
+	this->new_master_port("power_ctrl_mem", &this->power_ctrl_itf_mem);
+	this->new_master_port("voltage_ctrl_mem", &this->voltage_ctrl_itf_mem);
 	this->new_master_port("power_ctrl_host", &this->power_ctrl_itf_host);
 	this->new_master_port("voltage_ctrl_host", &this->voltage_ctrl_itf_host);
 	this->new_master_port("power_ctrl_sensor1", &this->power_ctrl_itf_sensor1);
@@ -95,12 +89,14 @@ void PowerManager::reset(bool active)
 {
 	if (active)
 	{
-        this->power_ctrl_itf_host.sync(PowerSupplyState::OFF);
+		this->power_ctrl_itf_host.sync(PowerSupplyState::OFF);
 	}
+#ifdef SCHEDULING
 	else
 		this->start_period.enqueue(1);
+#endif
 }
-
+#ifdef SCHEDULING
 void PowerManager::start()
 {
 	this->start_period.enqueue(10);
@@ -112,81 +108,138 @@ void PowerManager::start_period_handler(vp::Block *__this, vp::ClockEvent *event
 
 	if (!_this->start_period.is_enqueued())
 	{
-		_this->trace.msg(vp::TraceLevel::INFO, "starting period\n");
+		_this->trace.msg(vp::TraceLevel::DEBUG, "starting period\n");
 		_this->start_period.enqueue(period);
 		_this->power.get_engine()->stop_capture();
 		double dynamic_power, static_power;
 		fprintf(stderr, "@power.measure_%d@%f@\n", _this->time.get_time(), _this->power.get_engine()->get_average_power(dynamic_power, static_power));
 		_this->power.get_engine()->start_capture();
 		// GENERATED START EVENTS
-
-		_this->start_host.enqueue(start_time_host); 
-		_this->start_sensor1.enqueue(start_time_sensor1); 
-		_this->start_sensor2.enqueue(start_time_sensor2); 
-		_this->start_sensor3.enqueue(start_time_sensor3); 
 		// END START EVENTS
 	}
 }
 
 // GENERATED EVENT HANDLERS
-
-void PowerManager::start_host_handler(vp::Block *__this, vp::ClockEvent *event)
-{
-	PowerManager *_this = (PowerManager *)__this;
-	static vp::PowerSupplyState current_state = OFF;
-	if (!_this->start_host.is_enqueued())
-	{
-		// change power state
-		current_state = current_state == OFF ? ON : OFF;
-		_this->trace.msg(vp::TraceLevel::DEBUG, "changing status of host to %s\n", statename[current_state] );
-		_this->power_ctrl_itf_host.sync(current_state);
-		if (current_state == ON)
-			_this->start_host.enqueue(active_time_host);
-	}
-}
-void PowerManager::start_sensor1_handler(vp::Block *__this, vp::ClockEvent *event)
-{
-	PowerManager *_this = (PowerManager *)__this;
-	static vp::PowerSupplyState current_state = OFF;
-	if (!_this->start_sensor1.is_enqueued())
-	{
-		// change power state
-		current_state = current_state == OFF ? ON : OFF;
-		_this->trace.msg(vp::TraceLevel::DEBUG, "changing status of sensor1 to %s\n", statename[current_state] );
-		_this->power_ctrl_itf_sensor1.sync(current_state);
-		if (current_state == ON)
-			_this->start_sensor1.enqueue(active_time_sensor1);
-	}
-}
-void PowerManager::start_sensor2_handler(vp::Block *__this, vp::ClockEvent *event)
-{
-	PowerManager *_this = (PowerManager *)__this;
-	static vp::PowerSupplyState current_state = OFF;
-	if (!_this->start_sensor2.is_enqueued())
-	{
-		// change power state
-		current_state = current_state == OFF ? ON : OFF;
-		_this->trace.msg(vp::TraceLevel::DEBUG, "changing status of sensor2 to %s\n", statename[current_state] );
-		_this->power_ctrl_itf_sensor2.sync(current_state);
-		if (current_state == ON)
-			_this->start_sensor2.enqueue(active_time_sensor2);
-	}
-}
-void PowerManager::start_sensor3_handler(vp::Block *__this, vp::ClockEvent *event)
-{
-	PowerManager *_this = (PowerManager *)__this;
-	static vp::PowerSupplyState current_state = OFF;
-	if (!_this->start_sensor3.is_enqueued())
-	{
-		// change power state
-		current_state = current_state == OFF ? ON : OFF;
-		_this->trace.msg(vp::TraceLevel::DEBUG, "changing status of sensor3 to %s\n", statename[current_state] );
-		_this->power_ctrl_itf_sensor3.sync(current_state);
-		if (current_state == ON)
-			_this->start_sensor3.enqueue(active_time_sensor3);
-	}
-}
 // END EVENT HANDLERS
+#endif
+
+vp::IoReqStatus PowerManager::handle_state(vp::Block *__this, vp::IoReq *req)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	_this->trace.msg(vp::TraceLevel::DEBUG, "Received power state request at offset 0x%lx, size 0x%lx, is_write %d\n",
+					 req->get_addr(), req->get_size(), req->get_is_write());
+
+	if (req->get_is_write())
+	{
+		_this->trace.msg(vp::TraceLevel::DEBUG, "handling power state request...\n");
+		int reqstate = (*req->get_data()) & 3;
+		_this->last_pm.set(reqstate);
+		int power_state;
+		switch (reqstate)
+		{
+		case 0:
+			power_state = OFF;
+			break;
+		case 1:
+			power_state = ON_CLOCK_GATED;
+			break;
+		case 2:
+			power_state = OFF;
+			break;
+		case 3:
+			power_state = ON;
+			break;
+		default:
+			break;
+		}
+		int addr = req->get_addr();
+
+		switch (addr)
+		{
+		// GENERATED POWER OFFSETS
+		case 0:
+			_this->power_ctrl_itf_ico.sync(power_state);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of ico to %s\n", statename[power_state]);
+			break;
+		case 4:
+			_this->power_ctrl_itf_mem.sync(power_state);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of mem to %s\n", statename[power_state]);
+			break;
+		case 8:
+			_this->power_ctrl_itf_host.sync(power_state);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of host to %s\n", statename[power_state]);
+			break;
+		case 12:
+			_this->power_ctrl_itf_sensor1.sync(power_state);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of sensor1 to %s\n", statename[power_state]);
+			break;
+		case 16:
+			_this->power_ctrl_itf_sensor2.sync(power_state);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of sensor2 to %s\n", statename[power_state]);
+			break;
+		case 20:
+			_this->power_ctrl_itf_sensor3.sync(power_state);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of sensor3 to %s\n", statename[power_state]);
+			break;
+
+		// END GENERATED POWER OFFSETS
+		default:
+			_this->trace.msg(vp::TraceLevel::DEBUG, "No component associated with offset %d\n", addr);
+			break;
+		}
+	}
+	return vp::IoReqStatus::IO_REQ_OK;
+}
+
+vp::IoReqStatus PowerManager::handle_voltage(vp::Block *__this, vp::IoReq *req)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	_this->trace.msg(vp::TraceLevel::DEBUG, "Received voltage request at offset 0x%lx, size 0x%lx, is_write %d\n",
+					 req->get_addr(), req->get_size(), req->get_is_write());
+
+	if (req->get_is_write())
+	{
+		_this->trace.msg(vp::TraceLevel::DEBUG, "handling voltage request...\n");
+		float voltage = (*req->get_data()) & 3;
+	
+		int addr = req->get_addr();
+
+		switch (addr)
+		{
+		// GENERATED VOLTAGE OFFSETS
+		case 0:
+			_this->voltage_ctrl_itf_ico.sync(voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of ico to %f\n");
+			break;
+		case 4:
+			_this->voltage_ctrl_itf_mem.sync(voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of mem to %f\n");
+			break;
+		case 8:
+			_this->voltage_ctrl_itf_host.sync(voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of host to %f\n");
+			break;
+		case 12:
+			_this->voltage_ctrl_itf_sensor1.sync(voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor1 to %f\n");
+			break;
+		case 16:
+			_this->voltage_ctrl_itf_sensor2.sync(voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor2 to %f\n");
+			break;
+		case 20:
+			_this->voltage_ctrl_itf_sensor3.sync(voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor3 to %f\n");
+			break;
+
+		// END GENERATED VOLTAGE OFFSETS
+		default:
+			_this->trace.msg(vp::TraceLevel::DEBUG, "No component associated with offset %d\n", addr);
+			break;
+		}
+	}
+	return vp::IoReqStatus::IO_REQ_OK;
+}
 
 extern "C" Component *gv_new(ComponentConf &config)
 {

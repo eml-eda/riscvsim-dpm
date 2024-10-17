@@ -34,57 +34,61 @@ class Soc(gvsoc.systree.Component):
         host.o_FETCH(ico.i_INPUT())
         host.o_DATA(ico.i_INPUT())
 
-        host.add_properties({
-            "power_models":{
-                "background": {
-                    "dynamic": {
-                        "type": "linear",
-                        "unit": "W",
-                        "values": {
-                            "25": {
-                                "600.0": {
-                                    "any": 0.00020
-                                },
-                                "1200.0": {
-                                    "any": 0.00050
-                                }
-                            }
+        host.add_properties({"power_models": {
+              "insn_groups": [
+                {
+                  "dynamic": {
+                    "type": "linear",
+                    "unit": "pJ",
+                    "values": {
+                      "25": {
+                        "1.2": {
+                          "any": "4.98"
                         }
-                    },
-                    "leakage": {
-                        "type": "linear",
-                        "unit": "W",
-
-                        "values": {
-                            "25": {
-                                "600.0": {
-                                    "any": 0.00005
-                                },
-                                "1200.0": {
-                                    "any": 0.00010
-                                }
-                            }
-                        }
-                    },
-                },
-                "access_power": {
-                    "dynamic": {
-                        "type": "linear",
-                        "unit": "pJ",
-
-                        "values": {
-                            "25": {
-                                "600.0": {
-                                    "any": 5.00000
-                                },
-                                "1200.0": {
-                                    "any": 10.00000
-                                }
-                            }
-                        }
+                      }
                     }
+                  }
+                },
+                {
+                  "dynamic": {
+                    "type": "linear",
+                    "unit": "pJ",
+                    "values": {
+                      "25": {
+                        "1.2": {
+                          "any": "4.98"
+                        }
+                      }
+                    }
+                  }
                 }
+              ],
+              "background": {
+                "dynamic": {
+                  "type": "linear",
+                  "unit": "W",
+                  "values": {
+                    "25": {
+                      "1.2": {
+                        "any": "0.000"
+                      }
+                    }
+                  }
+                },
+                "leakage": {
+                  "type": "linear",
+                  "unit": "W",
+                  "values": {
+                    "25": {
+                      "1.2": {
+                        "any": "0.0000355"
+                      }
+                    }
+                  }
+                }
+              }
             }})
+        #
 
         sensor1 = my_sensors.GenericSensor(self, "sensor1")
         sensor2 = my_sensors.GenericSensor(self, "sensor2")
@@ -115,11 +119,29 @@ class Soc(gvsoc.systree.Component):
             latency=300,
         )
 
+
         # connect the power control
         # instantiate power manager
         pm = power_manager.PowerManager(self, "pm")
 
         # power intercorrect
+        ico.o_MAP(
+            pm.i_INPUT_STATE(),
+            "pm_state",
+            base=0x20004000,
+            size=0x00001000,
+            rm_base=True,
+
+        )
+
+        ico.o_MAP(
+            pm.i_INPUT_VOLTAGE(),
+            "pm_voltage",
+            base=0x20005000,
+            size=0x00001000,
+            rm_base=True,
+        )
+
         pm.o_POWER_CTRL_host(host.i_POWER())
         pm.o_VOLTAGE_CTRL_host(host.i_VOLTAGE())
 
