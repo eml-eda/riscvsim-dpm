@@ -44,9 +44,9 @@ IoReqStatus MySensor::handle_req(Block *__this, IoReq *req)
     _this->access_power.account_energy_quantum();
     if (!req->get_is_write() && req->get_addr() == 0 && req->get_size() == 4)
     {
-        _this->pending_req = req;
-        _this->event.enqueue(2000);
-        return vp::IO_REQ_PENDING;
+        *(uint32_t *)req->get_data() = rand();
+        req->inc_latency(2000);
+        return vp::IO_REQ_OK;
     }
     return IO_REQ_OK;
 }

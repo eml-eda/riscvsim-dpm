@@ -5,13 +5,31 @@ import json
 def add_ports(component_list, srcpath):
     interfaces_generated = ""
     ports_generated = ""
-    power_offsets_generated = ""
     voltage_offsets_generated = ""
+    event_handlers=""
+    event_handlers_def=""
+    events=""
+    delay_registers=""
+    vcd_signals=""
+    event_constructors=""
+    event_handlers=""
+    delay_offsets=""
+    config_delay_offsets=""
     addr = 0
     addr_offsets = """// defined states in power manager
 #define off 0x0
 #define on_clock_gated 0x1
 #define on 0x3
+
+// offset to control the power measurement
+#define start_capture 0x1
+#define stop_capture 0
+
+//offsets of the config registers
+#define on_off 0
+#define off_on 1
+#define on_cg 2
+#define cg_on 3
 
 //define pm addresses mapped to components
 """
@@ -30,27 +48,71 @@ def add_ports(component_list, srcpath):
         setattr(PowerManager, voltage_port_name, voltage_ports)
 
         # port needs to be added also in the cpp file.
+        events= events + f"\tTimeEvent delay_{component};\n"
+
+        event_handlers_def = event_handlers_def + f"\tstatic void {component}_delay_handler(vp::Block *__this, vp::TimeEvent *event);\n"
 
         interfaces_generated = (
             interfaces_generated
-            + f"\n\tWireMaster<int> power_ctrl_itf_{component};\n\tWireMaster<int> voltage_ctrl_itf_{component};"
+            + f"\tWireMaster<int> power_ctrl_itf_{component};\n\tWireMaster<int> voltage_ctrl_itf_{component};\n"
         )
+
+        delay_registers= delay_registers + f"\tunsigned int {component}_delays[4] = {{1,1,1,1}};\n\tint {component}_next_state;\n"
+
+        vcd_signals= vcd_signals + f"\tvp::Signal<int> {component}_state;\n"
+
+        event_constructors= event_constructors + f"\t, delay_{component}(this, {component}_delay_handler), {component}_state(*this, \"{component}_state\", 3) "
 
         ports_generated = (
             ports_generated
-            + f'\n\tthis->new_master_port("power_ctrl_{component}", &this->power_ctrl_itf_{component});\n\tthis->new_master_port("voltage_ctrl_{component}", &this->voltage_ctrl_itf_{component});'
+            + f'\tthis->new_master_port("power_ctrl_{component}", &this->power_ctrl_itf_{component});\n\tthis->new_master_port("voltage_ctrl_{component}", &this->voltage_ctrl_itf_{component});\n'
         )
 
-        power_offsets_generated = (
-            power_offsets_generated
-            + f'\t\tcase {addr*4}:\n\t\t\t_this->power_ctrl_itf_{component}.sync(power_state);\n\t\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "switching power state of {component} to %s\\n", statename[power_state]);\n\t\t\tbreak;\n'
-        )
+        event_handlers=event_handlers+f"void PowerManager::{component}_delay_handler(vp::Block *__this, vp::TimeEvent *event)\n{{\n\tPowerManager *_this = (PowerManager *)__this;\n\t_this->power_ctrl_itf_{component}.sync(_this->{component}_next_state);\n\t_this->trace.msg(vp::TraceLevel::DEBUG, \"switching power state of {component} to %s\\n\", statename[_this->{component}_next_state]);\n_this->{component}_state.set(_this->{component}_next_state);\n}}\n"
+
+        delay_offsets = delay_offsets + f"""
+        case {addr*4}:
+			if (!_this->delay_{component}.is_enqueued())
+			{{
+				_this->{component}_next_state = power_state;
+				// if next state is on check previous state
+				if (power_state == ON)
+				{{
+					if (_this->{component}_state.get() == OFF)
+						picoseconds = _this->{component}_delays[1];//off-on
+					else
+						picoseconds = _this->{component}_delays[3];//cg-on
+				}}
+				else if (power_state == OFF)
+				{{
+					picoseconds = _this->{component}_delays[0];//on-off
+				}}
+				else
+					picoseconds = _this->{component}_delays[2];//on-cg
+
+				_this->delay_{component}.enqueue(picoseconds);
+			}}
+			else
+				_this->trace.msg(vp::TraceLevel::DEBUG, "Last change of {component} is still  in progress...\\n");
+			break;
+"""
 
         voltage_offsets_generated = (
             voltage_offsets_generated
             + f'\t\tcase {addr*4}:\n\t\t\t_this->voltage_ctrl_itf_{component}.sync(voltage);\n\t\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of {component} to %f\\n");\n\t\t\tbreak;\n'
         )
-        addr_offsets = addr_offsets + f"#define {component}_offset {addr}\n"
+
+        config_delay_offsets = config_delay_offsets + f"""
+        case {addr*16}:
+		case {addr*16+4}:
+		case {addr*16+8}:
+		case {addr*16+12}:
+			_this->{component}_delays[(addr-{addr*16})/4] = value;
+			_this->trace.msg(vp::TraceLevel::DEBUG, "New configuration is: on-off: %d, off-on: %d, on-cg: %d, cg-on: %d\\n", _this->{component}_delays[0],_this->{component}_delays[1],_this->{component}_delays[2],_this->{component}_delays[3]);
+		break;
+"""
+
+        addr_offsets = addr_offsets + f"#define {component}_offset {addr}\n#define {component}_config_offset {addr*4}"
         addr = addr + 1
 
     # write offsets to a header file
@@ -65,115 +127,6 @@ def add_ports(component_list, srcpath):
     in_block = False
 
     for line in lines:
-        if "// GENERATED INTERFACES" in line:
-            result.append(line)
-            result.extend(interfaces_generated)
-            in_block = True
-            continue
-
-        if "// END INTERFACES" in line:
-            in_block = False
-            result.append("\n" + line)
-            continue
-
-        if "// GENERATED POWER AND VOLTAGE PORTS" in line:
-            result.append(line)
-            result.extend(ports_generated)
-            in_block = True
-            continue
-
-        if "// END GENERATED PORTS" in line:
-            in_block = False
-            result.append("\n" + line)
-            continue
-
-        if "// GENERATED POWER OFFSETS" in line:
-            result.append(line)
-            result.extend(power_offsets_generated)
-            in_block = True
-            continue
-
-        if "// END GENERATED POWER OFFSETS" in line:
-            in_block = False
-            result.append("\n" + line)
-            continue
-
-        if "// GENERATED VOLTAGE OFFSETS" in line:
-            result.append(line)
-            result.extend(voltage_offsets_generated)
-            in_block = True
-            continue
-
-        if "// END GENERATED VOLTAGE OFFSETS" in line:
-            in_block = False
-            result.append("\n" + line)
-            continue
-
-        if not in_block:
-            result.append(line)
-
-    with open(srcpath, "w") as file:
-        file.writelines(result)
-
-
-def add_schedule(components, filepath, srcpath):
-    events = ""
-    start_events = ""
-    event_handlers = ""
-    event_handlers_definitions = ""
-    event_constructors = ""
-    scheduling_times = ""
-
-    with open(filepath, "r") as file:
-        schedule = json.load(file)
-
-    scheduling_times = f"\t#define SCHEDULING\n\t#define period {schedule["period"]}"
-    for item in components:
-        if item in schedule["components"]:
-            scheduling_times = (
-                scheduling_times
-                + f"\n\t#define active_time_{item} {schedule["components"][item]["time_on"]}\n\t#define start_time_{item} {schedule["components"][item]["activation_time"]}"
-            )
-
-            events = events + f"\n\tvp::ClockEvent start_{item};"
-            event_handlers_definitions = (
-                event_handlers_definitions
-                + f"\n\tstatic void start_{item}_handler(vp::Block *__this, vp::ClockEvent *event);"
-            )
-
-            event_constructors = (
-                event_constructors
-                + f",\n\tstart_{item}(this, PowerManager::start_{item}_handler)"
-            )
-
-            start_events = (
-                start_events + f"\n\t\t_this->start_{item}.enqueue(start_time_{item}); "
-            )
-
-            event_handlers = (
-                event_handlers
-                + f'\nvoid PowerManager::start_{item}_handler(vp::Block *__this, vp::ClockEvent *event)\n{{\n\tPowerManager *_this = (PowerManager *)__this;\n\tstatic vp::PowerSupplyState current_state = OFF;\n\tif (!_this->start_{item}.is_enqueued())\n\t{{\n\t\t// change power state\n\t\tcurrent_state = current_state == OFF ? ON : OFF;\n\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "changing status of {item} to %s\\n", statename[current_state] );\n\t\t_this->power_ctrl_itf_{item}.sync(current_state);\n\t\t_this->last_pm.set(current_state);\n\t\tif (current_state == ON)\n\t\t\t_this->start_{item}.enqueue(active_time_{item});\n\t}}\n}}'
-            )
-
-    # update the source file
-
-    with open(srcpath, "r") as f:
-        lines = f.readlines()
-    result = []
-
-    in_block = False
-
-    for line in lines:
-        if "// GENERATED SCHEDULING TIMES" in line:
-            result.append(line)
-            result.extend(scheduling_times)
-            in_block = True
-            continue
-
-        if "// END SCHEDULING TIMES" in line:
-            in_block = False
-            result.append("\n" + line)
-            continue
 
         if "// GENERATED EVENTS" in line:
             result.append(line)
@@ -188,7 +141,7 @@ def add_schedule(components, filepath, srcpath):
 
         if "// GENERATED EVENT HANDLER DEFINITIONS" in line:
             result.append(line)
-            result.extend(event_handlers_definitions)
+            result.extend(event_handlers_def)
             in_block = True
             continue
 
@@ -196,6 +149,39 @@ def add_schedule(components, filepath, srcpath):
             in_block = False
             result.append("\n" + line)
             continue
+
+        if "// GENERATED INTERFACES" in line:
+            result.append(line)
+            result.extend(interfaces_generated)
+            in_block = True
+            continue
+
+        if "// END INTERFACES" in line:
+            in_block = False
+            result.append("\n" + line)
+            continue
+
+        if "// GENERATED DELAY REGISTERS" in line:
+            result.append(line)
+            result.extend(delay_registers)
+            in_block = True
+            continue
+
+        if "// END DELAY REGISTERS" in line:
+            in_block = False
+            result.append("\n" + line)
+            continue 
+        
+        if "// GENERATED VCD PS SIGNAL" in line:
+            result.append(line)
+            result.extend(vcd_signals)
+            in_block = True
+            continue
+
+        if "// END GENERATED VCD PS SIGNAL" in line:
+            in_block = False
+            result.append("\n" + line)
+            continue 
 
         if "// GENERATED EVENT CONSTRUCTORS" in line:
             result.append(line)
@@ -206,15 +192,15 @@ def add_schedule(components, filepath, srcpath):
         if "// END EVENT CONSTRUCTORS" in line:
             in_block = False
             result.append("\n" + line)
-            continue
+            continue              
 
-        if "// GENERATED START EVENTS" in line:
+        if "// GENERATED POWER AND VOLTAGE PORTS" in line:
             result.append(line)
-            result.extend(start_events)
+            result.extend(ports_generated)
             in_block = True
             continue
 
-        if "// END START EVENTS" in line:
+        if "// END GENERATED PORTS" in line:
             in_block = False
             result.append("\n" + line)
             continue
@@ -230,11 +216,45 @@ def add_schedule(components, filepath, srcpath):
             result.append("\n" + line)
             continue
 
+        if "// GENERATED DELAY OFFSETS" in line:
+            result.append(line)
+            result.extend(delay_offsets)
+            in_block = True
+            continue
+
+        if "// END GENERATED DELAY OFFSETS" in line:
+            in_block = False
+            result.append("\n" + line)
+            continue
+
+        if "// GENERATED VOLTAGE OFFSETS" in line:
+            result.append(line)
+            result.extend(voltage_offsets_generated)
+            in_block = True
+            continue
+
+        if "// END GENERATED VOLTAGE OFFSETS" in line:
+            in_block = False
+            result.append("\n" + line)
+            continue
+
+        if "// GENERATED CONFIG DELAY OFFSETS" in line:
+            result.append(line)
+            result.extend(config_delay_offsets)
+            in_block = True
+            continue
+
+        if "// END GENERATED CONFIG DELAY OFFSETS" in line:
+            in_block = False
+            result.append("\n" + line)
+            continue
+
         if not in_block:
             result.append(line)
 
     with open(srcpath, "w") as file:
         file.writelines(result)
+
 
 
 # clean the source file from the generated components
@@ -268,26 +288,20 @@ class PowerManager(gsys.Component):
         name: str,
         schedule=False,
         schedule_file="attributes.json",
+        component_list=None
     ):
         super().__init__(parent, name)
         src_file = self.get_file_path("power_manager.cpp")
-        self.component_list = parent.components.copy()
-        self.component_list.pop(name)
-        print("detected components: ", self.component_list.keys())
+        if component_list is None:
+            self.component_list = list(parent.components.keys())
+            self.component_list.remove(name)
+        else:
+            self.component_list = component_list
+        print("detected components: ", self.component_list)
 
         clean_src(src_file)
 
         add_ports(self.component_list, src_file)
-
-        # parse schedule file
-        if schedule:
-            schedule_file = self.get_file_path(schedule_file)
-            add_schedule(self.component_list, schedule_file, src_file)
-            with open(schedule_file, "r") as file:
-                data = json.load(file)
-            self.component_list = {
-                k: v for k, v in self.component_list.items() if k in data["components"]
-            }
 
         self.add_sources(["power_manager.cpp"])
 
@@ -296,3 +310,9 @@ class PowerManager(gsys.Component):
 
     def i_INPUT_VOLTAGE(self) -> gsys.SlaveItf:
         return gsys.SlaveItf(self, "voltage_ctrl", signature="io")
+
+    def i_POWER_REPORT(self) -> gsys.SlaveItf:
+        return gsys.SlaveItf(self, "power_report", signature="io")
+    
+    def i_DELAY_CONFIG(self) -> gsys.SlaveItf:
+        return gsys.SlaveItf(self, "delay_config", signature="io")

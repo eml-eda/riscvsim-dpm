@@ -3,7 +3,7 @@ SHELL := /bin/bash
 #------------------------------------
 APP              = test
 # App sources
-APP_SRCS         = ../main.c
+APP_SRCS         = 
 # App includes
 APP_INC	         =
 # Compiler flags
@@ -13,5 +13,7 @@ APP_LDFLAGS      =
 
 # Custom linker
 APP_LINK_SCRIPT  =
+
+
 
 include $(RULES_DIR)/pmsis_rules.mk
