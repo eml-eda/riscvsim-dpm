@@ -17,10 +17,10 @@ int main()
     volatile int *pm_config_delay = (volatile int *)pm_config;
 
     // configure delays
-    *(pm_config_delay + host_config_offset + on_off) = 50000;
-    *(pm_config_delay + host_config_offset + off_on) = 20000;
-    *(pm_config_delay + host_config_offset + cg_on) = 30000;
-    *(pm_config_delay + host_config_offset + on_cg) = 40000;
+    *(pm_config_delay + host_config_offset + on_off_offset) = 50000;
+    *(pm_config_delay + host_config_offset + off_on_offset) = 20000;
+    *(pm_config_delay + host_config_offset + cg_on_offset) = 30000;
+    *(pm_config_delay + host_config_offset + on_cg_offset) = 40000;
 
     // read sensor
     int data1, data2, data3;
@@ -50,7 +50,6 @@ int main()
         pi_time_wait_us(500);
         *(pm_report_ptr) = stop_capture;
         printf("power on_cg consumption: %f\n", *(double *)(pm_report));
-        printf("changing voltage\n");
     }
     return 0;
 }

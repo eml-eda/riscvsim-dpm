@@ -26,10 +26,10 @@ def add_ports(component_list, srcpath):
 #define stop_capture 0
 
 //offsets of the config registers
-#define on_off 0
-#define off_on 1
-#define on_cg 2
-#define cg_on 3
+#define on_off_offset 0
+#define off_on_offset 1
+#define on_cg_offset 2
+#define cg_on_offset 3
 
 //define pm addresses mapped to components
 """
@@ -112,7 +112,7 @@ def add_ports(component_list, srcpath):
 		break;
 """
 
-        addr_offsets = addr_offsets + f"#define {component}_offset {addr}\n#define {component}_config_offset {addr*4}"
+        addr_offsets = addr_offsets + f"#define {component}_offset {addr}\n#define {component}_config_offset {addr*4}\n"
         addr = addr + 1
 
     # write offsets to a header file
