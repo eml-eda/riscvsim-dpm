@@ -18,394 +18,148 @@ cd riscv-gnu-toolchain
 make 
 ~~~
 
+### pulp compiler and sdk
+
+
 ## Installing GVSoC
 
-GVSoC can be installed by following the instruction found in [repository](https://github.com/gvsoc/gvsoc). To automate the process a script has been wrote to clone and install the tool automatically (clone_and_install_gvsoc.sh)
+GVSoC can be installed by following the instruction found in [repository](https://github.com/eml-eda/gvsoc). To automate the process a script has been wrote to clone and install the tool automatically (clone_and_install_gvsoc.sh). The bin (_gvsoc/bin_) folder containing gvsoc executable has to be added to PATH environment variable.
 
-## Build system and components
+## Repository structure
 
-### Build a simple system
-
-In order to build a system, _Python Generators_ are exploited to assemble the different components together. It is mandatory to declare the top level entity of our system as a target for the runner _**gapy**_, by inheriting the _gvsoc.runner.Target_ class and setting **GAPY_TARGET** to true:
-
-~~~python
-import gvsoc.runner
-
-GAPY_TARGET= True
-
-class Target(gvsoc.runner.Target):
-
-    def __init__(self, parser, options):
-        super(Target, self).__init__(parser, options,
-            model=Rv64, description="RV64 virtual board")
+~~~bash
+├── dpm
+├── pulpdpm
+│   └── app
+└── tutorials
+    ├── 0_how_to_build_a_system_from_scratch
+    ├── 14_how_to_add_power_traces_to_a_component
+    ├── 1_how_to_write_a_component_from_scratch
+    ├── 2_how_to_make_components_communicate_together
+    ├── 6_how_to_add_timing
+    └── utils
 ~~~
 
-The _model_ argument is the name of the class of the system that is going to be implemented.
+This repository contains relevant tutorials (tutorials folder), together with a short guide on how to work with GVSoC (_GVSOC_guide.md_) and two example system, where the power_manager component is able to modify the power state of the component acting on the main power port:
 
-All components, and also the system, are declared inheriting the _**gvsoc.systree.Component**_ class.
+- dpm: contains a system with a _ri5cy_ core.
+- pulpdpm: contains a system with _pulp open board_ chip.
 
-~~~python
-class Rv64(gvsoc.systree.Component):
+In both cases the Power Manager component is able to change the power state of the components by operating on the memory mapped registers directly from the firmware runnning on the simulated core.
 
-    def __init__(self, parent, name, parser, options):
-        super().__init__(parent, name, options=options)
-            
-        clock = vp.clock_domain.Clock_domain(self, "clock", 
-            frequency=100000000)
-            
-        soc = SoC(self, "soc", parser)
-            
-        clock.o_CLOCK(soc.i_CLOCK())
+## Description of the Power manager component
+
+The Python generator of the component is "power_manager.py".
+The PowerManager constructor can take a list of string, containing the names of the components to control. This list is used to generate the necessary connection ports, interfaces and source code to manage the changing of power state and voltages of the connected components. Alternatively, if no list is specified, it generates connections for all the components present in the same hierarchy level.
+
+~~~Python
+pm = power_manager.PowerManager(self, "pm", component_list=["host", "sensor1", "sensor2", "sensor3"])
 ~~~
 
-Note that the _parser_ option is not propagated but can be used to get or declare the command line arguments.
 
-In this example the **Rv64** class instantiate a clock component and the actual system (_SoC_), consequently it connects the output port of the clock with the input clock port of the _soc_  object, which code is:
+The internal registers of the component are controlled by reading and writing its memory mapped ports. The available ports are:
 
-~~~python
-class Soc(gvsoc.systree.Component):
+- __i_INPUT_STATE()__: Writing to this port, can change the power state of the component: each component is assigned to an offset.
+- __i_INPUT_VOLTAGE()__: Writing to this port, can change the voltage of the component: each component is assigned to an offset.
+- __i_POWER_REPORT()__: Writing to this port, it is possible to start and stop recording power consumption. Reading from this port returns the last power consumption value.
+- __i_DELAY_CONFIG()__: Writing to this port it is possible to specify the delays of each transition for each component. At each component is assigned a component offset, and at each component offset is assigned a transition offset for every direction of the power state change (4 possible transition for 3 states)
 
-    def __init__(self, parent, name, parser):
-        super().__init__(parent, name)
+The component generates an header file (_pm_addr.h_) file containing the generated offsets, as in the following example:
 
-        [args, __] = parser.parse_known_args()
+~~~c
+// defined states in power manager
+#define off 0x0
+#define on_clock_gated 0x1
+#define on 0x3
 
-        binary = args.binary
+// offset to control the power measurement
+#define start_capture 0x1
+#define stop_capture 0
 
-        # Main memory
-        mem = memory.memory.Memory(self, "mem",     size=0x00100000)
+//offsets of the config registers
+#define on_off_offset 0
+#define off_on_offset 1
+#define on_cg_offset 2
+#define cg_on_offset 3
 
-        # Main interconnect
-        ico = interco.router.Router(self, "ico")
-        ico.o_MAP(mem.i_INPUT(), "mem", base=0x00000000, size=0x00100000, rm_base=True)
-
-        # Instantiates the main core and connect fetch and
-        # data to the interconnect
-        host = cpu.iss.riscv.Riscv(self, "host", isa="rv64imafdc")
-        host.o_FETCH(ico.i_INPUT())
-        host.o_DATA(ico.i_INPUT())
-        host.o_DATA_DEBUG(ico.i_INPUT())
-
-        # ELF loader will execute first and will then 
-        # send to the core the boot address and 
-        # notify him he can start
-
-        loader = utils.loader.loader.ElfLoader(self, "loader", binary=binary)
-
-        loader.o_OUT(ico.i_INPUT())
-        loader.o_START(host.i_FETCHEN())
-        loader.o_ENTRY(host.i_ENTRY())
-
-        gdbserver.gdbserver.Gdbserver(self, "gdbserver")
+//define pm addresses mapped to components
+#define host_offset 0
+#define host_config_offset 0
+#define sensor1_offset 1
+#define sensor1_config_offset 4
+#define sensor2_offset 2
+#define sensor2_config_offset 8
+#define sensor3_offset 3
+#define sensor3_config_offset 12
 ~~~
 
-The SoC class consists of 3 main components:
+The ports are then mapped in memory in the System component containing the all component and the instantiated power manager.
 
-* Host CPU: the riscv 64 bit core
-
-* Memory: generic memory from the module library.
-* Loader: the component responsible for loading the binary code to the core.
-* Main interconnect: the component that handles the interconnection between the components. In this example, it maps the memory at base address 0x00000000.
-
-the last line (_gdbserver_) is optional, and it permits to activate a gdb server in order to debug the execution of the firmware.
-
-### Building a component
-
-In order to describe a new component, it is needed to create a python script (_generator_) like following example:
-
-~~~python
-
-class MyComp(gvsoc.systree.Component):
-    def __init__(self, parent: gvsoc.systree.Component, name: str, value: int):#parent and name are mandatory
-        super().__init__(parent, name)
-        self.add_sources(['my_comp.cpp'])
-        self.add_properties({#add value parameter to the json configuration of the component
-            "value": value
-        })
-    #input port, the name should correspond to c++ code
-    def i_INPUT(self) -> gvsoc.systree.SlaveItf:
-        return gvsoc.systree.SlaveItf(self, 'input', signature='io')
-~~~
-
-When defining a new component, it is mandatory to provide the constructor of its class with the parent and name argument. The cpp code associated to the component is linked by the _add_sources_ function. If the components holds some additional feature (e.g. it stores a value), it has to be added to the json configuration through the function _add_properties_. The behavior of the component is described through c++ code. The following code follows the python example:
-
-~~~cpp
-#include <vp/vp.hpp>
-#include <vp/itf/io.hpp>
-
-class MyComp : public vp::Component
-{
-public:
-    MyComp(vp::ComponentConf &config);
-
-private:
-    static vp::IoReqStatus handle_req(vp::Block *__this, vp::IoReq *req);
-    vp::IoSlave input_itf;
-    uint32_t value;
-};
-
-MyComp::MyComp(vp::ComponentConf &config)
-    : vp::Component(config)
-{
-    this->input_itf.set_req_meth(&MyComp::handle_req);
-    this->new_slave_port("input", &this->input_itf);
-    this->value = this->get_js_config()->get_child_int("value");
-}
-
-vp::IoReqStatus MyComp::handle_req(vp::Block *__this, vp::IoReq *req)
-{
-    MyComp *_this = (MyComp *)__this;
-
-    printf("Received request at offset 0x%lx, size 0x%lx, is_write %d\n",
-        req->get_addr(), req->get_size(), req->get_is_write());
-    if (!req->get_is_write() && req->get_addr() == 0 && req->get_size() == 4)
-    {
-        *(uint32_t *)req->get_data() = _this->value;
-    }
-    return vp::IO_REQ_OK;
-}
-
-
-extern "C" vp::Component *gv_new(vp::ComponentConf &config)
-{
-    return new MyComp(config);
-}
-
-~~~
-
-Let's break down the code and highlight the code features:
-
-* The declared class (_MyComp_) inherits from the Component base class of the gvsoc library.
-* Its constructor is call by the software passing the configuration
-* Inside the constructor the interface is linked with the function _new_slave_port_ and its handler is connected with _set_req_meth_. The name passed as argument is the same as the one provided in the python method _i_INPUT_. Also, the configuration is retrieved from the python description with _get_js_config_ (in this example, the parameter _value_).
-* The function _**gv_new**_ is needed by the framework in order to instantiate the class when the component is loaded.
-* The handle of the interface port (_handle_req_) its called everytime a request must be handled. The method is necessarily static and it receives the instance of the class as argument.
-
-Taking as an example the previous system code, in order to connect the new component, a few lines have to be added in the constructor:
-
-~~~python
-    comp = my_comp.MyComp(self, 'my_comp', value=0x12345678)
-    ico.o_MAP(comp.i_INPUT(), 'comp', base=0x20000000, size=0x00001000, rm_base=True)
-~~~
-
-In these lines, the class MyComp is instantiated with a defined value, then its port is mapped by the interconnect object to a defined address that will be accessed by the binary to be executed.
-
-### Power Modeling
-
-Power modeling is based on power sources.
-The power state of a component  in this example, is controlled on two ports:
-
-~~~cpp
-//in class declaration
-vp::WireMaster<int> power_ctrl_itf;
-vp::WireMaster<int> voltage_ctrl_itf;
-    ...
-//in component contructor
-this->new_master_port("power_ctrl", &this->power_ctrl_itf);
-this->new_master_port("voltage_ctrl", &this->voltage_ctrl_itf);
-~~~
-
-In this example the two ports are controlled through registers:
-
-* the first consists of 2 bit: one stating if the component is active, the second to activate the clock of the component.
-* the second holds the voltage value.
-
-~~~cpp
-if (req->get_size() == 4){
-    if (req->get_addr() == 0){
-        if (req->get_is_write()){
-            int power = (*(uint32_t *)req->get_data()) & 1;
-            int clock = ((*(uint32_t *)req->get_data()) >> 1) & 1;
-            int power_state;
-            if (power){
-                if (clock){
-                    power_state = vp::PowerSupplyState::ON;
-                } else {
-                        power_state = vp::PowerSupplyState::ON_CLOCK_GATED;
-                    }
-            } else {
-                    power_state = vp::PowerSupplyState::OFF;
-            }
-            _this->power_ctrl_itf.sync(power_state);
-            }
-        }
-    else if (req->get_addr() == 4){
-            if (req->get_is_write()){
-                int voltage = *(uint32_t *)req->get_data();
-                _this->voltage_ctrl_itf.sync(voltage);
-            }
-        }
-    }
-~~~
-
-As shown in the code example the power state of the component is set by calling the sync function of each port.
-The definition of the power metrics of the two sources are described in the Python generator.
-They consists in measured power consumption at different voltage level, temperature and frequency.
-
-~~~python
-self.add_properties(
-            {
-                "background_power": {
-                    "dynamic": {
-                        "type": "linear",
-                        "unit": "W",
-                        "values": {
-                            "25": {
-                                "600.0": {"any": 0.00020},
-                                "1200.0": {"any": 0.00050},
-                            }
-                        },
-                    },
-                    "leakage": {
-                        "type": "linear",
-                        "unit": "W",
-                        "values": {
-                            "25": {
-                                "600.0": {"any": 0.00005},
-                                "1200.0": {"any": 0.00010},
-                            }
-                        },
-                    },
-                },
-                "access_power": {
-                    "dynamic": {
-                        "type": "linear",
-                        "unit": "pJ",
-                        "values": {
-                            "25": {
-                                "600.0": {"any": 5.00000},
-                                "1200.0": {"any": 10.00000},
-                            }
-                        },
-                    }
-                },
-            }
+~~~Python
+        ico.o_MAP(
+            pm.i_INPUT_STATE(),
+            "pm_state",
+            base=0x20004000,
+            size=0x00001000,
+            rm_base=True,
         )
+
+        ico.o_MAP(
+            pm.i_INPUT_VOLTAGE(),
+            "pm_voltage",
+            base=0x20005000,
+            size=0x00001000,
+            rm_base=True,
+        )
+        
+        ico.o_MAP(
+            pm.i_POWER_REPORT(), 
+            "pm_report",
+            base=0x20006000,
+            size=0x00000010,
+            rm_base=True
+        )
+
+        ico.o_MAP(
+            pm.i_DELAY_CONFIG(), 
+            "pm_config",
+            base=0x20007000,
+            size=0x00001000,
+            rm_base=True
+        ) 
 ~~~
 
-This example models the power for any frequency, at temperature of 25 Celsius, of two different voltage levels.
-The framework interpolates the power values based on the given parametrics.
-In order to take care of the clock gating the _power_supply_set_ _method_ has to be overloaded, in the component that is changing power stare..
+Therefore in the simulated binaries it is possible to control the power as in the following example.
 
-~~~cpp
-void MyComp::power_supply_set(vp::PowerSupplyState state)
-{
-    if (state == vp::PowerSupplyState::ON)
-    {
-        this->background_power.dynamic_power_start();
+~~~c
+#define pm_state 0x20004000
+#define pm_voltage 0x20005000
+#define pm_config 0x20007000
+#define pm_report 0x20006000
 
-    }
-    else
-    {
-        this->background_power.dynamic_power_stop();
-    }
-}
+// inside main function
+    ...
+// definition of the pointers to the registers 
+    volatile int *pm_state_ptr = (volatile int *)pm_state;
+    volatile float *pm_voltage_ptr = (volatile float *)pm_voltage;
+    volatile int *pm_report_ptr = (volatile int *)pm_report;
+    volatile int *pm_config_delay = (volatile int *)pm_config;
+
+// configure delay example, time in ps
+    *(pm_config_delay + host_config_offset + on_off_offset) = 50000;
+    *(pm_config_delay + host_config_offset + off_on_offset) = 20000;
+    *(pm_config_delay + host_config_offset + cg_on_offset) = 30000;
+    *(pm_config_delay + host_config_offset + on_cg_offset) = 40000;
+
+// power measurement 
+    *(pm_report_ptr) = start_capture;
+    *(pm_report_ptr) = stop_capture;
+    printf("power consumption: %f\n", *(double *)(pm_report));
+
+// changing voltage
+    *(pm_voltage_ptr + host_offset) = 0.9;
 ~~~
 
-The overloaded function just turn on the dynamic power counter as soon as the power state is on.
-To model the power of the acceses ( e.g. access to the memory or instruction) the framework relies on energy quantum that are interpolated depending on the voltage. This quantity needs only to be assign through the instruction:
-
-~~~cpp
-_this->access_power.account_energy_quantum();
-~~~
-
-Finally the power ports are added to the python generator of the component and bind into the system.
-
-~~~python
-#in my_comp.py classes
-def o_POWER_CTRL(self, itf: gvsoc.systree.SlaveItf):
-    self.itf_bind('power_ctrl', itf, signature='wire<int>')
-
-def o_VOLTAGE_CTRL(self, itf: gvsoc.systree.SlaveItf):
-    self.itf_bind('voltage_ctrl', itf, signature='wire<int>')
-
-#in my_system.py constructor
-comp2 = my_comp.MyComp2(self, 'my_comp2')
-ico.o_MAP(comp2.i_INPUT(), 'comp2', base=0x30000000, size=0x00001000, rm_base=True)
-comp2.o_POWER_CTRL( comp.i_POWER  ())
-comp2.o_VOLTAGE_CTRL( comp.i_VOLTAGE())
-~~~
-
-Note that every component inherited from _gvsoc.systree.Component_ is already provided with input power and voltage port (_i_POWER()_ an _i_VOLTAGE()_).
-The simulated binary (main.c) go through the possible states and outputs the power consumption of the system.
-
-## About Power in gvsoc
-
-The documentation provided in the repository does't state or explain how power is handled in the simulator. In these section there might be incorrect, or not exhaustive information.
-
-### Describing power sources and setting parameters
-The simulator makes available 3 power states:
-
-~~~cpp
-#from vp/power/power.hpp
- enum PowerSupplyState
-    {
-        OFF=0,
-        ON_CLOCK_GATED=2,
-        ON=1
-    };
-~~~
-
-The metrics of the power consumption are described through JSON. For each power source, there is a JSON object describing the dynamic and leakage power consumption.
-In this object for each temperature is indicated at each voltage, a certain frequency at which correspond a power consumption value.
-In the example below, there is a definition of a power source named "_background_power_": it has both dynamic and leakage power values and there are power metrics for a single temperature (25) and two voltages (600 and 1200) at _any_ frequencies.
-
-~~~json
-                "background_power": {
-                    "dynamic": {
-                        "type": "linear",
-                        "unit": "W",
-                        "values": {
-                            "25": {
-                                "600.0": {"any": 0.00020},
-                                "1200.0": {"any": 0.00050},
-                            }
-                        },
-                    },
-                    "leakage": {
-                        "type": "linear",
-                        "unit": "W",
-                        "values": {
-                            "25": {
-                                "600.0": {"any": 0.00005},
-                                "1200.0": {"any": 0.00010},
-                            }
-                        },
-                    },
-                }
-~~~
-
-The change in power state and voltage, is immediate. In the standard core present in the models, changing the power state does not affect the execution of the code.
-In the modeled chips present in the pulp directory, power is modeled on instructions and not on the running state of the component.  
-
-## Timing in gvsoc
-In the simulator is it possible to model timing and delay through clock events.
-
-~~~ cpp
-vp::ClockEvent event;
-~~~
-
-events needs to be configured in the costructor of the component:
-
-~~~ cpp
-MyComp::MyComp(vp::ComponentConf &config)
-    : vp::Component(config), event(this, MyComp::handle_event)
-{
-~~~
-
-The constructor of the event is call passing as parameter the component and the callback function that will be executed when the event is fired.
-
-The main methods are:
-
-* exec();
-  * the event is executed immediately
-* enqueue(int64_t cycles = 1);
-  * the event is enqueued, and will be execute after a number of cycles
-* cancel();
-  * the execution of an enqueued event is cancelled.
-* is_enqueued();
-  * return true if the event is scheduled, false otherwise
-* enable();
-  * enable the event to be executed at each clock cycle
-* disable();
-  * disable the execution of the event at each clock cycle
+## Limitations of GVSoC for power modeling
+If the description of the power source does not contain more than one voltage level, then changing voltage has no effect on power consumption, and the sole value is used for estimation, otherwise the consumption is computed depending on the applied voltage level, and the linear interpolation of the described values.
+if the component to control, does not overload the _power_supply_set_ method, then the default function is called. This function has the same behavior both for _ON_ and _ON_CLOCK_GATED_ value, turning on the consumption of each power source component and its child component, meaning that both dynamic and leakage power is accounted. In the _OFF_  state instead, the default behavior is to turn off both power components.
