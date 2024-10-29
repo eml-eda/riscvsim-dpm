@@ -54,7 +54,7 @@ def add_ports(component_list, srcpath):
 
         interfaces_generated = (
             interfaces_generated
-            + f"\tWireMaster<int> power_ctrl_itf_{component};\n\tWireMaster<int> voltage_ctrl_itf_{component};\n"
+            + f"\tWireMaster<int> power_ctrl_itf_{component};\n\tWireMaster<double> voltage_ctrl_itf_{component};\n"
         )
 
         delay_registers= delay_registers + f"\tunsigned int {component}_delays[4] = {{1,1,1,1}};\n\tint {component}_next_state;\n"

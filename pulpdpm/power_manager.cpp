@@ -54,13 +54,13 @@ private:
 
 	// GENERATED INTERFACES
 	WireMaster<int> power_ctrl_itf_host;
-	WireMaster<int> voltage_ctrl_itf_host;
+	WireMaster<double> voltage_ctrl_itf_host;
 	WireMaster<int> power_ctrl_itf_sensor1;
-	WireMaster<int> voltage_ctrl_itf_sensor1;
+	WireMaster<double> voltage_ctrl_itf_sensor1;
 	WireMaster<int> power_ctrl_itf_sensor2;
-	WireMaster<int> voltage_ctrl_itf_sensor2;
+	WireMaster<double> voltage_ctrl_itf_sensor2;
 	WireMaster<int> power_ctrl_itf_sensor3;
-	WireMaster<int> voltage_ctrl_itf_sensor3;
+	WireMaster<double> voltage_ctrl_itf_sensor3;
 
 	// END INTERFACES
 
@@ -307,8 +307,8 @@ vp::IoReqStatus PowerManager::handle_voltage(vp::Block *__this, vp::IoReq *req)
 
 	if (req->get_is_write())
 	{
-		double voltage = (*req->get_data());
-		_this->trace.msg(vp::TraceLevel::DEBUG, "handling volt%f age request||||. ..\n", voltage);
+		double voltage = (*(double*)req->get_data());
+		_this->trace.msg(vp::TraceLevel::DEBUG, "handling voltage request with %f...\n", voltage);
 
 		int addr = req->get_addr();
 

@@ -29,9 +29,9 @@ gvsoc:
 
 config:
 	mkdir -p build
-	../gvsoc/bin/gvsoc --target-dir=$(CURDIR) --target=my_system --work-dir=$(BUILDDIR) --binary=$(CURDIR)/app/BUILD/PULP/GCC_RISCV/test/test prepare $(runner_args) --trace=pm  --vcd --event=.*
+	gvsoc --target-dir=$(CURDIR) --target=my_system --work-dir=$(BUILDDIR) --binary=$(CURDIR)/app/BUILD/PULP/GCC_RISCV/test/test prepare $(runner_args) --trace=pm  --vcd --event=.*
 run:
-	../gvsoc/bin/gvsoc --target-dir=$(CURDIR) --target=my_system --work-dir=$(BUILDDIR) --binary=$(CURDIR)/app/BUILD/PULP/GCC_RISCV/test/test image flash  run  $(runner_args) --vcd --event=.* --trace=pm
+	gvsoc --target-dir=$(CURDIR) --target=my_system --work-dir=$(BUILDDIR) --binary=$(CURDIR)/app/BUILD/PULP/GCC_RISCV/test/test image flash  run  $(runner_args) --vcd --event=.* --trace=pm
 
 run_launcher:
 	LD_LIBRARY_PATH=$(CURDIR)/../gvsoc/install/lib:$(LD_LIBRARY_PATH) ./launcher --config=build/gvsoc_config.json

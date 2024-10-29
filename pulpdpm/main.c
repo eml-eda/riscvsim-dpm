@@ -24,6 +24,8 @@ int main()
 
     // read sensor
     int data1, data2, data3;
+    
+    double current_voltage = 1.2;
     for (int i = 0; i < 10; i++)
     {
         *(pm_report_ptr) = start_capture;
@@ -50,8 +52,8 @@ int main()
         pi_time_wait_us(500);
         *(pm_report_ptr) = stop_capture;
         printf("power on_cg consumption: %f\n", *(double *)(pm_report));
-        double current_voltage = *(pm_report_ptr + host_offset);
-        *(pm_voltage_ptr + host_offset) = current_voltage - 0.1;
+        current_voltage-=0.1;
+        *(pm_voltage_ptr + host_offset) = current_voltage;
     }
     return 0;
 }
