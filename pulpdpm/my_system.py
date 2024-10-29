@@ -21,7 +21,7 @@ class PulpBoard(gvsoc.systree.Component):
         # # instantiate power manager
         soc_clock=Clock_domain(self, 'soc_clock_domain', frequency=50000000)
 
-        ico= interco.router.Router(self, 'ico')
+        ico = interco.router.Router(self, 'ico')
         axi_pm = interco.router_proxy.Router_proxy(self, 'axi_pm')
         
         self.bind(axi_pm, 'out', ico, 'input')

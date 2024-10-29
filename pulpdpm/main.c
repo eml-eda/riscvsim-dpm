@@ -50,6 +50,8 @@ int main()
         pi_time_wait_us(500);
         *(pm_report_ptr) = stop_capture;
         printf("power on_cg consumption: %f\n", *(double *)(pm_report));
+        double current_voltage = *(pm_report_ptr + host_offset);
+        *(pm_voltage_ptr + host_offset) = current_voltage - 0.1;
     }
     return 0;
 }

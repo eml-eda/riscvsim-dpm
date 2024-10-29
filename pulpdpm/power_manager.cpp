@@ -92,7 +92,6 @@ PowerManager::PowerManager(ComponentConf &config)
 // END EVENT CONSTRUCTORS
 {
 	this->traces.new_trace("trace", &this->trace, vp::DEBUG);
-
 	this->new_slave_port("state_ctrl", &this->input_state_itf);
 	this->new_slave_port("voltage_ctrl", &this->input_voltage_itf);
 	this->new_slave_port("power_report", &this->power_report_itf);
@@ -308,8 +307,8 @@ vp::IoReqStatus PowerManager::handle_voltage(vp::Block *__this, vp::IoReq *req)
 
 	if (req->get_is_write())
 	{
-		_this->trace.msg(vp::TraceLevel::DEBUG, "handling voltage request...\n");
-		float voltage = (*(uint32_t*)req->get_data());
+		double voltage = (*req->get_data());
+		_this->trace.msg(vp::TraceLevel::DEBUG, "handling volt%f age request||||. ..\n", voltage);
 
 		int addr = req->get_addr();
 
