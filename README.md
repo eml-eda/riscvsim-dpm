@@ -184,8 +184,48 @@ Therefore in the simulated binaries it is possible to control the power as in th
     *(pm_voltage_ptr + host_offset) = 0.9;
 ~~~
 
+## pm_functions library
+To ease the development of firmware a tiny higher level library has been developed.
+The first part of the library contains the addresses at which the port of the component are mapped.
+
+~~~c
+#define pm_state 0x20004000
+#define pm_voltage 0x20005000
+#define pm_config_delay_state 0x20007000
+#define pm_report 0x20006000
+#define pm_config_delay_voltage 0x20008000
+~~~
+
+A second part holds the values of the delays, for transitions made with voltage scaling:
+
+~~~c
+//define voltage delays configurations
+#define delay_on_idle 400000000
+#define delay_idle_on 400000000
+#define delay_on_sleep 1000000000
+#define delay_sleep_on 4000000000
+#define delay_idle_on_us delay_idle_on/1000
+#define delay_sleep_on_us delay_sleep_on/1000
+~~~
+
+Finally a few functions are defined:
+
+~~~c
+void run_to_idle();
+void idle_to_run();
+void sleep_to_run();
+void run_to_sleep();
+void capture_start();
+void capture_stop();
+double get_power_consumption();
+void switch_on();
+~~~
+
+There are 4 functions to move across idle, run and sleep states, 2 functions that controls the recording of the power consumption, and one to read the recorded value from the component.
+
+The switch_on() function is needed to start the power sources of all component, otherwise the system doesn't account the power consumption.
+
 ## Limitations of GVSoC for power modeling
 If the description of the power source does not contain more than one voltage level, then changing voltage has no effect on power consumption, and the sole value is used for estimation, otherwise the consumption is computed depending on the applied voltage level, and the linear interpolation of the described values.
 if the component to control, does not overload the _power_supply_set_ method, then the default function is called. This function has the same behavior both for _ON_ and _ON_CLOCK_GATED_ value, turning on the consumption of each power source component and its child component, meaning that both dynamic and leakage power is accounted. In the _OFF_  state instead, the default behavior is to turn off both power components.
 The voltage default component interface and callback function (i_VOLTAGE() in the python generator, vp::Component::voltage_port attribute, vp::Component::voltage_sync method of the component class, vp::BlockPower::voltage_set_all method of the BlockPower class) are implemented for taking an integer value whereas the method that applies the given voltage to the power source (vp::PowerSource::set_voltage) is utilizing a double argument. This make impossible to apply a not integer voltage even if the models contains the values as real numbers. Therefore in order to make everything work the above mentioned GVSoC-core's attributes and interfaces have to be modified taking a double as an argument.
-
