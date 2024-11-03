@@ -12,7 +12,7 @@
 int main()
 {
     volatile int *pm_state_ptr = (volatile int *)pm_state;
-    volatile double *pm_voltage_ptr = (volatile double *)pm_voltage;
+    volatile float *pm_voltage_ptr = (volatile float *)pm_voltage;
     volatile int *pm_report_ptr = (volatile int *)pm_report;
     volatile int *pm_config_delay = (volatile int *)pm_config;
 
@@ -25,7 +25,7 @@ int main()
     // read sensor
     int data1, data2, data3;
     
-    double current_voltage = 1.2;
+    float current_voltage = 1.2;
     for (int i = 0; i < 10; i++)
     {
         *(pm_report_ptr) = start_capture;
@@ -43,8 +43,8 @@ int main()
         squared_sum = data1 * data1 + data2 * data2 + data3 * data3;
 
         printf("mean squared : %f\n\n", squared_sum / 3);
+        
         // go to sleep
-        // busy wait
         *(pm_report_ptr) = stop_capture;
         printf("power on consumption: %f\n", *(double *)(pm_report));
         *(pm_state_ptr + host_offset) = on_clock_gated;
@@ -52,6 +52,8 @@ int main()
         pi_time_wait_us(500);
         *(pm_report_ptr) = stop_capture;
         printf("power on_cg consumption: %f\n", *(double *)(pm_report));
+
+        // decrease voltage
         current_voltage-=0.1;
         *(pm_voltage_ptr + host_offset) = current_voltage;
     }
