@@ -7,9 +7,9 @@ APP              = test
 
 # App sources
 ifdef SOURCE
-    APP_SRCS := "$(CURDIR)/examples/$(SOURCE)"
+    APP_SRCS := "$(CURDIR)/examples/$(SOURCE) $(CURDIR)/examples/pm_functions.c"
 else
-	APP_SRCS  =  "$(CURDIR)/examples/main.c"
+	APP_SRCS  =  "$(CURDIR)/examples/main.c $(CURDIR)/examples/pm_functions.c"
 endif
 
 .PHONY: help app
