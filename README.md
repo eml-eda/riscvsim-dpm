@@ -19,7 +19,26 @@ make
 ~~~
 
 ### pulp compiler and sdk
+In order to compile application for pulp open, the pulp sdk is needed.
+A simpler way to setup all the requirements of the toolchain is to use the Docker image of the MESSY simulator, following the instructions at this [link](https://eml-eda.github.io/messy/docker/).
 
+Once docker is set it is possible to use the makefile present in the _pulpdpm_ folder, by running the container with the command:
+
+~~~bash
+docker run -it --rm -v $(pwd):/messy messy:latest
+~~~
+
+And then using
+
+~~~bash
+make app
+~~~
+
+By default this command compiles the main.c example found in _examples_ folder. To compile the other examples it is sufficient to add an argument SOURCE:
+
+~~~bash
+make app SOURCE=slow_workload.c
+~~~
 
 ## Installing GVSoC
 
@@ -30,7 +49,8 @@ GVSoC can be installed by following the instruction found in [repository](https:
 ~~~bash
 ├── dpm
 ├── pulpdpm
-│   └── app
+│   ├── app
+│   └── examples
 └── tutorials
     ├── 0_how_to_build_a_system_from_scratch
     ├── 14_how_to_add_power_traces_to_a_component
@@ -45,7 +65,10 @@ This repository contains relevant tutorials (tutorials folder), together with a 
 - dpm: contains a system with a _ri5cy_ core.
 - pulpdpm: contains a system with _pulp open board_ chip.
 
-In both cases the Power Manager component is able to change the power state of the components by operating on the memory mapped registers directly from the firmware runnning on the simulated core.
+In both cases the Power Manager component is able to change the power state and voltage of the components by operating on the memory mapped registers directly from the firmware runnning on the simulated core.
+
+In each folder is present a Makefile to automate the compilation of GVSoC and the firmware to run on the core.
+
 
 ## Description of the Power manager component
 
@@ -62,7 +85,8 @@ The internal registers of the component are controlled by reading and writing it
 - __i_INPUT_STATE()__: Writing to this port, can change the power state of the component: each component is assigned to an offset.
 - __i_INPUT_VOLTAGE()__: Writing to this port, can change the voltage of the component: each component is assigned to an offset.
 - __i_POWER_REPORT()__: Writing to this port, it is possible to start and stop recording power consumption. Reading from this port returns the last power consumption value.
-- __i_DELAY_CONFIG()__: Writing to this port it is possible to specify the delays of each transition for each component. At each component is assigned a component offset, and at each component offset is assigned a transition offset for every direction of the power state change (4 possible transition for 3 states)
+- __i_DELAY_STATE_CONFIG()__: Writing to this port it is possible to specify the delays of each transition for each component. At each component is assigned a component offset, and at each component offset is assigned a transition offset for every direction of the power state change (4 possible transition for 3 states)
+- __i_DELAY_VOLTAGE_CONFIG()__: Writing to this port it is possible to specify the delay of the next transition of any component.
 
 The component generates an header file (_pm_addr.h_) file containing the generated offsets, as in the following example:
 
@@ -163,3 +187,5 @@ Therefore in the simulated binaries it is possible to control the power as in th
 ## Limitations of GVSoC for power modeling
 If the description of the power source does not contain more than one voltage level, then changing voltage has no effect on power consumption, and the sole value is used for estimation, otherwise the consumption is computed depending on the applied voltage level, and the linear interpolation of the described values.
 if the component to control, does not overload the _power_supply_set_ method, then the default function is called. This function has the same behavior both for _ON_ and _ON_CLOCK_GATED_ value, turning on the consumption of each power source component and its child component, meaning that both dynamic and leakage power is accounted. In the _OFF_  state instead, the default behavior is to turn off both power components.
+The voltage default component interface and callback function (i_VOLTAGE() in the python generator, vp::Component::voltage_port attribute, vp::Component::voltage_sync method of the component class, vp::BlockPower::voltage_set_all method of the BlockPower class) are implemented for taking an integer value whereas the method that applies the given voltage to the power source (vp::PowerSource::set_voltage) is utilizing a double argument. This make impossible to apply a not integer voltage even if the models contains the values as real numbers. Therefore in order to make everything work the above mentioned GVSoC-core's attributes and interfaces have to be modified taking a double as an argument.
+

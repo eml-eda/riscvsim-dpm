@@ -90,7 +90,7 @@ int MyLauncher::run(std::string config_path)
 
 void MyLauncher::access(gv::Io_request *req)
 {
-    printf("Received request (is_read: %d, addr: 0x%lx, size: 0x%lx)\n", req->type == gv::Io_request_read, req->addr, req->size);
+    // printf("Received request (is_read: %d, addr: 0x%lx, size: 0x%lx)\n", req->type == gv::Io_request_read, req->addr, req->size);
 
     if (req->type == gv::Io_request_read)
     {

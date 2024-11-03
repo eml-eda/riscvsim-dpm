@@ -90,13 +90,20 @@ class PulpBoard(gvsoc.systree.Component):
         )
 
         ico.o_MAP(
-            pm.i_DELAY_CONFIG(), 
-            "pm_config",
+            pm.i_DELAY_STATE_CONFIG(), 
+            "pm_state_delay_config",
             base=0x20007000,
             size=0x00001000,
             rm_base=True
         )
         
+        ico.o_MAP(
+            pm.i_DELAY_VOLTAGE_CONFIG(), 
+            "pm_voltage_delay_config",
+            base=0x20008000,
+            size=0x00000100,
+            rm_base=True
+        )
         pm.o_POWER_CTRL_host(host.i_POWER())
         pm.o_VOLTAGE_CTRL_host(host.i_VOLTAGE())
       

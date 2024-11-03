@@ -403,6 +403,7 @@ ON with accesses
 The documentation provided in the repository does't state or explain how power is handled in the simulator. In these section there might be incorrect, or not exhaustive information.
 
 ### Describing power sources and setting parameters
+
 The simulator makes available 3 power states:
 
 ~~~cpp

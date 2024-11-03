@@ -8,13 +8,11 @@
 
 using namespace vp;
 
-// typedef struct delay_holder
-// {
-// 	int on_off;
-// 	int off_on;
-// 	int on_cg;
-// 	int cg_on;
-// } delay_holder;
+typedef struct comp_to_change
+{
+	float voltage;
+	int address;
+} comp_to_change;
 
 static char statename[3][15] = {"OFF", "ON", "ON CLOCK GATED"};
 class PowerManager : public Component
@@ -25,17 +23,23 @@ public:
 	void reset(bool active);
 
 private:
+	static void voltage_delay_handler(vp::Block *__this, vp::TimeEvent *event);
 	static vp::IoReqStatus handle_state(vp::Block *__this, vp::IoReq *req);
 	static vp::IoReqStatus handle_voltage(vp::Block *__this, vp::IoReq *req);
 	static vp::IoReqStatus handle_power_report(vp::Block *__this, vp::IoReq *req);
-	static vp::IoReqStatus handle_delay_config(vp::Block *__this, vp::IoReq *req);
+	static vp::IoReqStatus handle_state_delay_config(vp::Block *__this, vp::IoReq *req);
+	static vp::IoReqStatus handle_voltage_delay_config(vp::Block *__this, vp::IoReq *req);
 	IoSlave input_state_itf;
 	IoSlave input_voltage_itf;
 	IoSlave power_report_itf;
-	IoSlave delay_config_itf;
+	IoSlave state_delay_config_itf;
+	IoSlave voltage_delay_config_itf;
 	Trace trace;
 	double last_power_measure;
+	uint64_t delay_voltage_value = 1;
+	comp_to_change to_change;
 
+	TimeEvent delay_voltage;
 	// GENERATED EVENTS
 	TimeEvent delay_host;
 	TimeEvent delay_sensor1;
@@ -86,7 +90,7 @@ private:
 };
 
 PowerManager::PowerManager(ComponentConf &config)
-	: Component(config)
+	: Component(config), delay_voltage(this, voltage_delay_handler)
 	  // GENERATED EVENT CONSTRUCTORS
 	, delay_host(this, host_delay_handler), host_state(*this, "host_state", 3) 	, delay_sensor1(this, sensor1_delay_handler), sensor1_state(*this, "sensor1_state", 3) 	, delay_sensor2(this, sensor2_delay_handler), sensor2_state(*this, "sensor2_state", 3) 	, delay_sensor3(this, sensor3_delay_handler), sensor3_state(*this, "sensor3_state", 3) 
 // END EVENT CONSTRUCTORS
@@ -95,11 +99,13 @@ PowerManager::PowerManager(ComponentConf &config)
 	this->new_slave_port("state_ctrl", &this->input_state_itf);
 	this->new_slave_port("voltage_ctrl", &this->input_voltage_itf);
 	this->new_slave_port("power_report", &this->power_report_itf);
-	this->new_slave_port("delay_config", &this->delay_config_itf);
+	this->new_slave_port("state_delay_config", &this->state_delay_config_itf);
+	this->new_slave_port("voltage_delay_config", &this->voltage_delay_config_itf);
 	this->input_state_itf.set_req_meth(handle_state);
 	this->input_voltage_itf.set_req_meth(handle_voltage);
 	this->power_report_itf.set_req_meth(handle_power_report);
-	this->delay_config_itf.set_req_meth(handle_delay_config);
+	this->state_delay_config_itf.set_req_meth(handle_state_delay_config);
+	this->voltage_delay_config_itf.set_req_meth(handle_voltage_delay_config);
 
 	// GENERATED POWER AND VOLTAGE PORTS
 	this->new_master_port("power_ctrl_host", &this->power_ctrl_itf_host);
@@ -188,7 +194,7 @@ vp::IoReqStatus PowerManager::handle_state(vp::Block *__this, vp::IoReq *req)
 		int picoseconds = 0;
 		switch (addr)
 		{
-		// GENERATED DELAY OFFSETS
+			// GENERATED DELAY OFFSETS
 
         case 0:
 			if (!_this->delay_host.is_enqueued())
@@ -307,55 +313,36 @@ vp::IoReqStatus PowerManager::handle_voltage(vp::Block *__this, vp::IoReq *req)
 
 	if (req->get_is_write())
 	{
-		double voltage = (*(double*)req->get_data());
+		float voltage = (*(float *)req->get_data());
 		_this->trace.msg(vp::TraceLevel::DEBUG, "handling voltage request with %f...\n", voltage);
 
-		int addr = req->get_addr();
+		_this->to_change.address = req->get_addr();
+		_this->to_change.voltage = voltage;
 
-		switch (addr)
-		{
-		// GENERATED VOLTAGE OFFSETS
-		case 0:
-			_this->voltage_ctrl_itf_host.sync(voltage);
-			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of host to %f\n");
-			break;
-		case 4:
-			_this->voltage_ctrl_itf_sensor1.sync(voltage);
-			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor1 to %f\n");
-			break;
-		case 8:
-			_this->voltage_ctrl_itf_sensor2.sync(voltage);
-			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor2 to %f\n");
-			break;
-		case 12:
-			_this->voltage_ctrl_itf_sensor3.sync(voltage);
-			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor3 to %f\n");
-			break;
-
-		// END GENERATED VOLTAGE OFFSETS
-		default:
-			_this->trace.msg(vp::TraceLevel::DEBUG, "No component associated with offset %d\n", addr);
-			break;
-		}
+		if (!_this->delay_voltage.is_enqueued()){
+			_this->delay_voltage.enqueue(_this->delay_voltage_value);
+		}else
+		_this->trace.msg(vp::TraceLevel::DEBUG, "Request ignored, another voltage request is in progress....\n");		
 	}
+
 	return vp::IoReqStatus::IO_REQ_OK;
 }
 
-vp::IoReqStatus PowerManager::handle_delay_config(vp::Block *__this, vp::IoReq *req)
+vp::IoReqStatus PowerManager::handle_state_delay_config(vp::Block *__this, vp::IoReq *req)
 {
 	PowerManager *_this = (PowerManager *)__this;
 	_this->trace.msg(vp::TraceLevel::DEBUG, "Received delay config at offset 0x%lx, size 0x%lx, is_write %d\n", req->get_addr(), req->get_size(), req->get_is_write());
 
 	if (req->get_is_write())
 	{
-		int value = *(uint32_t*)req->get_data();
+		int value = *(uint32_t *)req->get_data();
 		_this->trace.msg(vp::TraceLevel::DEBUG, "handling delay config request...%x\n", value);
 
 		int addr = req->get_addr();
 
 		switch (addr)
 		{
-		// GENERATED CONFIG DELAY OFFSETS
+			// GENERATED CONFIG DELAY OFFSETS
 
         case 0:
 		case 4:
@@ -426,6 +413,45 @@ vp::IoReqStatus PowerManager::handle_power_report(vp::Block *__this, vp::IoReq *
 		_this->trace.msg(vp::TraceLevel::DEBUG, "Returning %f\n", _this->last_power_measure);
 	}
 
+	return vp::IoReqStatus::IO_REQ_OK;
+}
+
+void PowerManager::voltage_delay_handler(vp::Block *__this, vp::TimeEvent *event)
+{
+	PowerManager *_this = (PowerManager *)__this;
+
+	switch (_this->to_change.address)
+	{
+	// GENERATED VOLTAGE OFFSETS
+		case 0:
+			_this->voltage_ctrl_itf_host.sync(_this->to_change.voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of host to %f\n", _this->to_change.voltage);
+			break;
+		case 4:
+			_this->voltage_ctrl_itf_sensor1.sync(_this->to_change.voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor1 to %f\n", _this->to_change.voltage);
+			break;
+		case 8:
+			_this->voltage_ctrl_itf_sensor2.sync(_this->to_change.voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor2 to %f\n", _this->to_change.voltage);
+			break;
+		case 12:
+			_this->voltage_ctrl_itf_sensor3.sync(_this->to_change.voltage);
+			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor3 to %f\n", _this->to_change.voltage);
+			break;
+
+	// END GENERATED VOLTAGE OFFSETS
+	default:
+		_this->trace.msg(vp::TraceLevel::DEBUG, "No component associated with offset %d\n", _this->to_change.address);
+		break;
+	}
+}
+
+ vp::IoReqStatus PowerManager::handle_voltage_delay_config(vp::Block *__this, vp::IoReq *req)
+{
+	PowerManager *_this = (PowerManager *)__this;
+	_this->delay_voltage_value = *((uint32_t *)req->get_data());
+	_this->trace.msg(vp::TraceLevel::DEBUG, "delay of voltage change set to  %d\n", _this->delay_voltage_value);
 	return vp::IoReqStatus::IO_REQ_OK;
 }
 

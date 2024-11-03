@@ -21,6 +21,13 @@ def add_ports(component_list, srcpath):
 #define on_clock_gated 0x1
 #define on 0x3
 
+//define voltage delays configurations
+#define delay_on_idle 400000000
+#define delay_idle_on 400000000
+#define delay_on_sleep 1000000000
+#define delay_sleep_on 4000000000
+
+
 // offset to control the power measurement
 #define start_capture 0x1
 #define stop_capture 0
@@ -99,7 +106,7 @@ def add_ports(component_list, srcpath):
 
         voltage_offsets_generated = (
             voltage_offsets_generated
-            + f'\t\tcase {addr*4}:\n\t\t\t_this->voltage_ctrl_itf_{component}.sync(voltage);\n\t\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of {component} to %f\\n");\n\t\t\tbreak;\n'
+            + f'\t\tcase {addr*4}:\n\t\t\t_this->voltage_ctrl_itf_{component}.sync(_this->to_change.voltage);\n\t\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of {component} to %f\\n", _this->to_change.voltage);\n\t\t\tbreak;\n'
         )
 
         config_delay_offsets = config_delay_offsets + f"""
@@ -314,5 +321,9 @@ class PowerManager(gsys.Component):
     def i_POWER_REPORT(self) -> gsys.SlaveItf:
         return gsys.SlaveItf(self, "power_report", signature="io")
     
-    def i_DELAY_CONFIG(self) -> gsys.SlaveItf:
-        return gsys.SlaveItf(self, "delay_config", signature="io")
+    def i_DELAY_STATE_CONFIG(self) -> gsys.SlaveItf:
+        return gsys.SlaveItf(self, "state_delay_config", signature="io")
+    
+    def i_DELAY_VOLTAGE_CONFIG(self) -> gsys.SlaveItf:
+        return gsys.SlaveItf(self, "voltage_delay_config", signature="io")
+

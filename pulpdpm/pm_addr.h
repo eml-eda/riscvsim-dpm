@@ -3,6 +3,13 @@
 #define on_clock_gated 0x1
 #define on 0x3
 
+//define voltage delays configurations
+#define delay_on_idle 400000000
+#define delay_idle_on 400000000
+#define delay_on_sleep 1000000000
+#define delay_sleep_on 4000000000
+
+
 // offset to control the power measurement
 #define start_capture 0x1
 #define stop_capture 0

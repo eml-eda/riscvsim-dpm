@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
-#include "pm_addr.h"
+#include "../pm_addr.h"
 #include "pmsis.h"
 
 #define pm_state 0x20004000
@@ -12,7 +12,7 @@
 int main()
 {
     volatile int *pm_state_ptr = (volatile int *)pm_state;
-    volatile float *pm_voltage_ptr = (volatile float *)pm_voltage;
+    volatile double *pm_voltage_ptr = (volatile double *)pm_voltage;
     volatile int *pm_report_ptr = (volatile int *)pm_report;
     volatile int *pm_config_delay = (volatile int *)pm_config;
 
