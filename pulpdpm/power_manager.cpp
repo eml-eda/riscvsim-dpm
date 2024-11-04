@@ -82,9 +82,13 @@ private:
 
 	// GENERATED VCD PS SIGNAL
 	vp::Signal<int> host_state;
+	vp::Signal<float> host_voltage;
 	vp::Signal<int> sensor1_state;
+	vp::Signal<float> sensor1_voltage;
 	vp::Signal<int> sensor2_state;
+	vp::Signal<float> sensor2_voltage;
 	vp::Signal<int> sensor3_state;
+	vp::Signal<float> sensor3_voltage;
 
 	// END GENERATED VCD PS SIGNAL
 };
@@ -92,7 +96,7 @@ private:
 PowerManager::PowerManager(ComponentConf &config)
 	: Component(config), delay_voltage(this, voltage_delay_handler)
 	  // GENERATED EVENT CONSTRUCTORS
-	, delay_host(this, host_delay_handler), host_state(*this, "host_state", 3) 	, delay_sensor1(this, sensor1_delay_handler), sensor1_state(*this, "sensor1_state", 3) 	, delay_sensor2(this, sensor2_delay_handler), sensor2_state(*this, "sensor2_state", 3) 	, delay_sensor3(this, sensor3_delay_handler), sensor3_state(*this, "sensor3_state", 3) 
+	, delay_host(this, host_delay_handler), host_state(*this, "host_state", 3), host_voltage(*this, "host_voltage", 32) 	, delay_sensor1(this, sensor1_delay_handler), sensor1_state(*this, "sensor1_state", 3), sensor1_voltage(*this, "sensor1_voltage", 32) 	, delay_sensor2(this, sensor2_delay_handler), sensor2_state(*this, "sensor2_state", 3), sensor2_voltage(*this, "sensor2_voltage", 32) 	, delay_sensor3(this, sensor3_delay_handler), sensor3_state(*this, "sensor3_state", 3), sensor3_voltage(*this, "sensor3_voltage", 32) 
 // END EVENT CONSTRUCTORS
 {
 	this->traces.new_trace("trace", &this->trace, vp::DEBUG);
@@ -426,18 +430,26 @@ void PowerManager::voltage_delay_handler(vp::Block *__this, vp::TimeEvent *event
 		case 0:
 			_this->voltage_ctrl_itf_host.sync(_this->to_change.voltage);
 			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of host to %f\n", _this->to_change.voltage);
+			_this->host_voltage.set(_this->to_change.voltage);
+
 			break;
 		case 4:
 			_this->voltage_ctrl_itf_sensor1.sync(_this->to_change.voltage);
 			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor1 to %f\n", _this->to_change.voltage);
+			_this->sensor1_voltage.set(_this->to_change.voltage);
+
 			break;
 		case 8:
 			_this->voltage_ctrl_itf_sensor2.sync(_this->to_change.voltage);
 			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor2 to %f\n", _this->to_change.voltage);
+			_this->sensor2_voltage.set(_this->to_change.voltage);
+
 			break;
 		case 12:
 			_this->voltage_ctrl_itf_sensor3.sync(_this->to_change.voltage);
 			_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of sensor3 to %f\n", _this->to_change.voltage);
+			_this->sensor3_voltage.set(_this->to_change.voltage);
+
 			break;
 
 	// END GENERATED VOLTAGE OFFSETS

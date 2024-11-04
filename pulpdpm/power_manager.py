@@ -59,9 +59,9 @@ def add_ports(component_list, srcpath):
 
         delay_registers= delay_registers + f"\tunsigned int {component}_delays[4] = {{1,1,1,1}};\n\tint {component}_next_state;\n"
 
-        vcd_signals= vcd_signals + f"\tvp::Signal<int> {component}_state;\n"
+        vcd_signals= vcd_signals + f"\tvp::Signal<int> {component}_state;\n\tvp::Signal<float> {component}_voltage;\n"
 
-        event_constructors= event_constructors + f"\t, delay_{component}(this, {component}_delay_handler), {component}_state(*this, \"{component}_state\", 3) "
+        event_constructors= event_constructors + f"\t, delay_{component}(this, {component}_delay_handler), {component}_state(*this, \"{component}_state\", 3), {component}_voltage(*this, \"{component}_voltage\", 32) "
 
         ports_generated = (
             ports_generated
@@ -99,7 +99,7 @@ def add_ports(component_list, srcpath):
 
         voltage_offsets_generated = (
             voltage_offsets_generated
-            + f'\t\tcase {addr*4}:\n\t\t\t_this->voltage_ctrl_itf_{component}.sync(_this->to_change.voltage);\n\t\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of {component} to %f\\n", _this->to_change.voltage);\n\t\t\tbreak;\n'
+            + f'\t\tcase {addr*4}:\n\t\t\t_this->voltage_ctrl_itf_{component}.sync(_this->to_change.voltage);\n\t\t\t_this->trace.msg(vp::TraceLevel::DEBUG, "switching voltage of {component} to %f\\n", _this->to_change.voltage);\n\t\t\t_this->{component}_voltage.set(_this->to_change.voltage);\n\n\t\t\tbreak;\n'
         )
 
         config_delay_offsets = config_delay_offsets + f"""

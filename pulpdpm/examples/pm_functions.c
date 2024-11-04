@@ -5,7 +5,8 @@ volatile float *pm_voltage_ptr = (volatile float *)pm_voltage;
 volatile int *pm_report_ptr = (volatile int *)pm_report;
 volatile int *pm_config_delay_states_ptr = (volatile int *)pm_config_delay_state;
 volatile int *pm_config_delay_voltage_ptr = (volatile int *)pm_config_delay_voltage;
-
+const int delay_idle_on_us = delay_idle_on/1000000;
+const int delay_sleep_on_us = delay_sleep_on/1000000;
 
 void run_to_idle()
 {
@@ -16,17 +17,17 @@ void run_to_idle()
 void idle_to_run()
 {
     *(pm_config_delay_voltage_ptr) = delay_idle_on;
+    *(pm_voltage_ptr + host_offset) = 1.2;
     // exit time
     pi_time_wait_us(delay_idle_on_us);
-    *(pm_voltage_ptr + host_offset) = 1.2;
 };
 
 void sleep_to_run()
 {
     *(pm_config_delay_voltage_ptr) = delay_sleep_on;
+    *(pm_voltage_ptr + host_offset) = 1.2;
     // exit time
     pi_time_wait_us(delay_sleep_on_us);
-    *(pm_voltage_ptr + host_offset) = 1.2;
 };
 
 void capture_start()
@@ -52,5 +53,6 @@ void run_to_sleep()
 
 void switch_on()
 {
+    *(pm_voltage_ptr + host_offset) = 1.2;
     *(pm_state_ptr + host_offset) = on;
 }

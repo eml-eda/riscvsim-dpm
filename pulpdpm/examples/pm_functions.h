@@ -12,8 +12,6 @@
 #define delay_idle_on 400000000
 #define delay_on_sleep 1000000000
 #define delay_sleep_on 4000000000
-#define delay_idle_on_us delay_idle_on/1000
-#define delay_sleep_on_us delay_sleep_on/1000
 
 void run_to_idle();
 void idle_to_run();

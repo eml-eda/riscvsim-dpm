@@ -3,7 +3,6 @@
 #define on_clock_gated 0x1
 #define on 0x3
 
-
 // offset to control the power measurement
 #define start_capture 0x1
 #define stop_capture 0

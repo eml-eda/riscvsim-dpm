@@ -80,3 +80,7 @@ sensor3.power_trace
 pm.last_pm_received[2:0]
 [pattern_trace] 1
 [pattern_trace] 0
+@40020
+pm.host_voltage[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
