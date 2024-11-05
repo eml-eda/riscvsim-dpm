@@ -170,7 +170,7 @@ In these lines, the class MyComp is instantiated with a defined value, then its 
 
 The _Component_ object provides some basic connection port, which are consequently inherited by all the describred components:
     - i_RESET() : a boolean port to control the reset signal 
-    - i_CLOCK() : a port to which a clock generator should be connecte
+    - i_CLOCK() : a port to which a clock generator should be connected
     - i_POWER() : a port that can be exploit to change the power state choosing from the available states.
     - i_VOLTAGE() : a port for controlling the component voltage (expressed as int)
 

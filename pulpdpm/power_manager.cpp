@@ -195,7 +195,7 @@ vp::IoReqStatus PowerManager::handle_state(vp::Block *__this, vp::IoReq *req)
 
 		int addr = req->get_addr();
 
-		int picoseconds = 0;
+		unsigned int picoseconds = 0;
 		switch (addr)
 		{
 			// GENERATED DELAY OFFSETS
