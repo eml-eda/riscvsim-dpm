@@ -20,7 +20,6 @@ class PowerManager : public Component
 
 public:
 	PowerManager(ComponentConf &config);
-	void reset(bool active);
 
 private:
 	static void voltage_delay_handler(vp::Block *__this, vp::TimeEvent *event);
@@ -122,14 +121,6 @@ PowerManager::PowerManager(ComponentConf &config)
 	this->new_master_port("voltage_ctrl_sensor3", &this->voltage_ctrl_itf_sensor3);
 
 	// END GENERATED PORTS
-}
-
-void PowerManager::reset(bool active)
-{
-	if (active)
-	{
-		this->power_ctrl_itf_host.sync(PowerSupplyState::OFF);
-	}
 }
 
 // GENERATED EVENT HANDLERS

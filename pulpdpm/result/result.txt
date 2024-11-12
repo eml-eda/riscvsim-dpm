@@ -1,0 +1,12 @@
+fast_workload.o
+Average consumption: 0.000642
+fast_workload_on_off.o
+Average consumption: 0.000501
+fast_workload_nodpm.o
+Average consumption: 0.000657
+slow_workload.o
+Average consumption: 0.000467
+slow_workload_on_off.o
+Average consumption: 0.000358
+slow_workload_nodpm.o
+Average consumption: 0.000623

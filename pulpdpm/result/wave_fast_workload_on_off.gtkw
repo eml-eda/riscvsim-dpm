@@ -1,0 +1,85 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Oct 19 14:18:26 2024
+[*]
+[dumpfile] "/home/lorenzo/Documents/EMIOT_PROJECT/riscvsim-dpm/pulpdpm/result/fast_workload_on_off.vcd"
+[timestart] 30197600000
+[size] 1920 1012
+[pos] -1 -1
+*-25.393990 30181889586 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] host.
+[treeopen] host.chip.
+[treeopen] host.chip.cluster.
+[sst_width] 226
+[signals_width] 545
+[sst_expanded] 1
+[sst_vpaned_height] 284
+@800200
+-host
+@22
+host.dyn_power_trace
+host.static_power_trace
+host.power_trace
+pm.host_state
+@800200
+-soc
+@22
+host.chip.soc.dyn_power_trace
+host.chip.soc.static_power_trace
+host.chip.soc.power_trace
+@800200
+-cluster
+@22
+host.chip.cluster.dyn_power_trace
+host.chip.cluster.power_trace
+host.chip.cluster.static_power_trace
+@1000200
+-cluster
+@800200
+-fc
+@22
+host.chip.soc.fc.active_pc[31:0]
+@28
+host.chip.soc.fc.asm
+@22
+host.chip.soc.fc.dyn_power_trace
+host.chip.soc.fc.static_power_trace
+host.chip.soc.fc.power_trace
+@1000200
+-fc
+-soc
+-host
+@800201
+-sensors
+-sensor1
+@23
+sensor1.dyn_power_trace
+sensor1.static_power_trace
+sensor1.power_trace
+@1000201
+-sensor1
+@800201
+-sensor2
+@23
+sensor2.dyn_power_trace
+sensor2.static_power_trace
+sensor2.power_trace
+@1000201
+-sensor2
+@800201
+-sensor3
+@23
+sensor3.dyn_power_trace
+sensor3.static_power_trace
+sensor3.power_trace
+@1000201
+-sensor3
+-sensors
+@28
+pm.last_pm_received[2:0]
+[pattern_trace] 1
+[pattern_trace] 0
+@40020
+pm.host_voltage[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

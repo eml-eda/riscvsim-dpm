@@ -105,7 +105,7 @@ class MyComp(gvsoc.systree.Component):
         return gvsoc.systree.SlaveItf(self, 'input', signature='io')
 ~~~
 
-When defining a new component, it is mandatory to provide the constructor of its class with the parent and name argument. The cpp code associated to the component is linked by the _add_sources_ function. If the components holds some additional feature (e.g. it stores a value), it has to be added to the json configuration through the function _add_properties_. The behavior of the component is described through c++ code. The following code follows the python example:
+When defining a new component, it is mandatory to provide the constructor of its class with the parent and name argument. The cpp code associated to the component is linked by the _add_sources_ function. If the components holds some additional feature (e.g. it stores a value), it can be added to the json configuration through the function _add_properties_. The behavior of the component is described through c++ code. The following code follows the python example:
 
 ~~~cpp
 #include <vp/vp.hpp>
@@ -151,11 +151,11 @@ extern "C" vp::Component *gv_new(vp::ComponentConf &config)
 
 ~~~
 
-Let's break down the code and highlight the code features:
+Let's break down the code and highlight its features:
 
 * The declared class (_MyComp_) inherits from the Component base class of the gvsoc library.
-* Its constructor is call by the software passing the configuration
-* Inside the constructor the interface is linked with the function _new_slave_port_ and its handler is connected with _set_req_meth_. The name passed as argument is the same as the one provided in the python method _i_INPUT_. Also, the configuration is retrieved from the python description with _get_js_config_ (in this example, the parameter _value_).
+* Its constructor is call by the GVSoC simulator passing the configuration file.
+* Inside the constructor the interface is linked with the function _new_slave_port_ and its handler is connected with _set_req_meth_. The name passed as argument is the same as the interface returned in the python method _i_INPUT_. Also, the configuration is retrieved from the python description with _get_js_config_ (in this example, the parameter _value_).
 * The function _**gv_new**_ is needed by the framework in order to instantiate the class when the component is loaded.
 * The handle of the interface port (_handle_req_) its called everytime a request must be handled. The method is necessarily static and it receives the instance of the class as argument.
 
@@ -169,10 +169,11 @@ Taking as an example the previous system code, in order to connect the new compo
 In these lines, the class MyComp is instantiated with a defined value, then its port is mapped by the interconnect object to a defined address that will be accessed by the binary to be executed.
 
 The _Component_ object provides some basic connection port, which are consequently inherited by all the describred components:
-    - i_RESET() : a boolean port to control the reset signal 
-    - i_CLOCK() : a port to which a clock generator should be connected
-    - i_POWER() : a port that can be exploit to change the power state choosing from the available states.
-    - i_VOLTAGE() : a port for controlling the component voltage (expressed as int)
+
+* i_RESET() : a boolean port to control the reset signal
+* i_CLOCK() : a port to which a clock generator should be connected
+* i_POWER() : a port that can be exploit to change the power state choosing from theavailable states.
+* i_VOLTAGE() : a port for controlling the component voltage (expressed as int)
 
 ### Power Modeling
 
@@ -184,7 +185,7 @@ The following example component can control the power state of a connected compo
 vp::WireMaster<int> power_ctrl_itf;
 vp::WireMaster<int> voltage_ctrl_itf;
     ...
-//in component contructor
+//in component constructor
 this->new_master_port("power_ctrl", &this->power_ctrl_itf);
 this->new_master_port("voltage_ctrl", &this->voltage_ctrl_itf);
 ~~~
@@ -445,10 +446,10 @@ In the example below, there is a definition of a power source named "_background
                 }
 ~~~
 
-The change in power state and voltage, is immediate. In the standard core present in the models, changing the power state does not affect the execution of the code.
-In the modeled chips present in the pulp directory, power is modeled on instructions and not on the running state of the component.  
+The change in power state and voltage, is immediate. In the standard core present in the models, changing the power state does not affect the execution of the code and the power is modeled on instructions and not on the running state of the component.  
 
 ## Timing in gvsoc
+
 In the simulator is it possible to model timing and delay through clock events.
 
 ~~~ cpp
@@ -481,4 +482,3 @@ The main methods are:
   * disable the execution of the event at each clock cycle
 
 Alternatively to clock event, TimeEvent class can be exploit with the same logic, instead of the number of clock periods, the event is scheduled with a time delay given in picoseconds.
- 

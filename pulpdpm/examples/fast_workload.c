@@ -6,7 +6,9 @@
 
 int main()
 {
+    // turn on the power consumption
     switch_on();
+    // start recording power consumption
     capture_start();
     printf("Start workload\n");
     for (int j = 0; j < 100; j++)
@@ -17,12 +19,15 @@ int main()
             result += i * i / (i + 2);
         }
         printf("Risultato del calcolo: %.2f\n", result);
+        // go to lower consumption state during inactive period
         run_to_idle();
         pi_time_wait_us(1000); // 1 ms delay
         idle_to_run();
     }
+    // stop recording energy consumption
     capture_stop();
-    printf("total consumption: %f\n", get_power_consumption());
+    // get the recorded value from the Powermanager
+    printf("Average consumption: %f\n", get_power_consumption());
 
     pi_time_wait_us(100);
     return 0;

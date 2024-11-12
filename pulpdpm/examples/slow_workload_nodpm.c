@@ -20,7 +20,7 @@ int main()
         pi_time_wait_us(10000); // 10 ms delay
     }
     capture_stop();
-    printf("total consumption: %f\n", get_power_consumption());
+    printf("Average consumption: %f\n", get_power_consumption());
 
     pi_time_wait_us(100);
     return 0;
