@@ -727,7 +727,7 @@ The ports are then mapped in memory in the System component containing the all c
         ) 
 ~~~
 
-To access these addresses from the code running on the PULP core, it is necessary to connect this interconnect to the one inside PULP open. This connection is achieved using the AXI PROXY component along with an external launcher that forwards the requests from the internal AXI proxy of PULP to the AXI proxy of the power manager. Consequently, the simulated binaries can control the power as shown in the following code example.
+  To access these addresses from the code running on the PULP core, it is necessary to connect this interconnect to the one inside PULP open. This connection is achieved using the AXI PROXY component along with an external launcher that forwards the requests from the internal AXI proxy of PULP to the AXI proxy of the power manager (for more detail, the source code of the launcher is included in `pulpdpm/launcher.cpp`). Consequently, the simulated binaries can control the power as shown in the following code example.
 
 ~~~c
 // definition of the addresses a which each poet is mapped
@@ -769,7 +769,7 @@ This code showcases possible operation that can be done with read and write oper
 
 ## pm_functions library
 
-To ease the development of firmwarefor this system a tiny higher level library has been developed.
+To ease the development of firmware for this system a tiny higher level library has been developed.
 The first part of the library contains the addresses at which the port of the component are mapped.
 
 ~~~c
@@ -813,7 +813,7 @@ Unfortunately, the behavior of the power state is defined by the model of the co
 
 There are 4 functions to move across idle, run and sleep states, 2 functions that controls the recording of the power consumption, and one to read the recorded value from the component. There are also 3 functions that simply set the states defined by GVSoC.
 
-The `switch_on()` function is needed to start the power sources of all components in any case, otherwise the system doesn't account the power consumption.
+The `switch_on()` function could be needed to start the power sources of all components in any case, otherwise the system doesn't account the power consumption.
 
 ## Describing a new state
 
@@ -913,11 +913,13 @@ The table below summarizes the results for different workloads, using the same n
 | Fast          | 657         | 642                  | 501         |
 | Slow          | 623         | 467                  | 358         |
 
-The results and the generated VCD waveforms can be found in the `pulpdpm/result` folder. Each workload has a corresponding `gtkwave` script (file with a `.gtkw` extension) that opens the interface with the relevant signals already added to the waveform window. To open a script, e.g. the fast workload example, simply run in a terminal:
+The results and the generated VCD waveforms can be found in the `pulpdpm/result` folder. Each workload has a corresponding `gtkwave` script (file with a `.gtkw` extension) that opens the interface with the relevant signals already added to the waveform window. To open a script, e.g. the fast workload example, simply run in a terminal the following command, specifying the script filename:
 
 ~~~bash
 gtkwave wave_fast_workload.gtkw
 ~~~
+
+
 
 ## Limitations of GVSoC for power modeling
 
