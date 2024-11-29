@@ -47,11 +47,11 @@ To facilitate the application of these policies, a specialized component called 
 This repository contains relevant tutorials (tutorials folder) from the official GVSoC repository, together with a short guide on how to work with the simulator and two example system, where the power_manager component is able to modify the power state of the component acting on the main power and voltage port:
 
 - dpm_old: contains a simpler system with a _ri5cy_ core, and a first version of the Powermanager component.
-- pulpdpm: contains a system with _pulp open board_ chip, and the final version of the component.
+- pulpdpm: Is the main working directory of this project, it contains a system with _pulp open board_ chip, and the final version of the component.
 
 In both cases the Power Manager component is able to change the power state and voltage of the components by operating on the memory mapped registers directly from the firmware runnning on the simulated core. Additionally, for the `pulpdpm` system, different workloads have been modeled in various firmware examples present in the `examples` folder. These examples demonstrate how the Power Manager component can be used to manage power states and voltages under different workload conditions.
 
-In each folder is present a Makefile to automate the compilation of GVSoC and the firmware to run on the core. In pulpdpm folder available commands are:
+In each folder is present a Makefile to automate the compilation of GVSoC and the firmware to run on the core. In `pulpdpm` folder available commands are:
 
 ~~~
 clean: clean all, including gvsoc build directory and builded firmware
@@ -69,9 +69,10 @@ run_launcher: Run GVSoC using the simple developed launcher, that forward the co
 open_vcd: Opens the GTKWave tool with the generated vcd file.
 ~~~
 
-To run the simulation for the first time, follow these steps:
+To run the simulation for the first time, after meeting the [prerequisite](#prerequisite), in `pulpdpm` folder follow these steps:
 
 1. Compile GVSoC:
+
     ~~~bash
     make gvsoc
     ~~~
@@ -86,9 +87,19 @@ To run the simulation for the first time, follow these steps:
 
 3. Compile an application:
 
+    Open the docker image:
+
+    ~~~bash
+    docker run -it --rm -v $(pwd):/messy messy:latest
+    ~~~
+
+    Alternatively, if you have installed the pulp sdk, source the script in `pulp-sdk/configs/pulp-open.sh`, then run:
+
     ~~~bash
     make app SOURCE=fast_workload.c
     ~~~
+
+    After the compilation exit docker, or close the shell since the pulp-open scripts set some enviromental variable that generates conflicts.
 
 4. Run the simulation:
 
